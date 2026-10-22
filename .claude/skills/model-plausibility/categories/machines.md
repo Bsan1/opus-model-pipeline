@@ -1,0 +1,31 @@
+# Machines and tools held in the hands
+
+- **Read the mechanism from the source before modelling.** Which control moves what, and where the hand pushes or squeezes. The hose nozzle's trigger is a rear trigger squeezed by the palm, not a front trigger.
+- **Controls are complete chains.**
+  - The control is hinged where a hand reaches it.
+  - The cable leaves the control's tab, is clipped along the frame, and enters the part it works: the mower's bar → cable → engine brake tab.
+  - Declare such chains with `model.route` so a short cable fails the build.
+  - A rope or cable that stays at its device stays there: the mower's starter rope stays in its cover.
+- **Every fitting has its counterpart.**
+  - A fuel cap sits on a tank.
+  - A primer bulb sits next to the carburettor.
+  - A battery sits in a socket, with a latch.
+  - A grille sits where air must flow in.
+  - A detail with no counterpart either gets one or goes.
+- **Nothing the source contradicts.** The trimmer's invented button squares, O-ring handle and wide guard were removed: none of them is in the video.
+- **Moving parts:**
+  - each has a pivot or an axle, and room to move;
+  - a part that moves on its own in game is its own object (`moving=`), with AO baked alone when parts overlap in the file (`ao_together=False`).
+- **Proportions follow the source even when not "realistic".** The trimmer's D handle sits right at the body, with a compact reach. Fit first-person framing numerically: screen positions and sizes of well-identified features (`u16_*_tuning`).
+- **Construction:**
+  - wheels are one revolved profile with the lugs pushed out of the same surface;
+  - revolved parts share one axis;
+  - plates are bolted to what they carry.
+- **Finishes come from the real material:**
+  - black plastic shroud: matte;
+  - baked-enamel deck: glossy;
+  - powder-coated handle: satin;
+  - chrome: metallic;
+  - rubber: matte.
+- **First-person view models:** the reference shows no hands. Design for the game camera's framing.
+- **Water and other effects** (a jet, rings on the ground) are Unity VFX, not geometry.

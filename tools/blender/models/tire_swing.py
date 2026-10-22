@@ -103,6 +103,23 @@ TREAD_DEPTH = 0.0                              # the tread pattern is in the nor
 FRONT = -1.0                                   # the side the front leg is on (Z sign); the loop below is built for -1
 
 model = om.Model("tire_swing", __file__)
+model.plan(
+    "tire swing: a tire hung from a side branch by one rope; a child sits in it and swings",
+    [("video", "1:04-1:08 (refs 27, 32)"), ("text", "real rigging: tire swing guides (Bob Vila, Instructables)")],
+    [   # name, role, job, attached to, moves, seen/guess/real
+        ("RoundTurn", "functional", "2.5 turns on the bark take the load by friction", ["branch"], "fixed", "real"),
+        ("BranchHitches", "functional", "two half hitches round the standing part lock the round turn", ["RoundTurn"], "fixed",
+         "real"),
+        ("BranchTail", "decorative", "the frayed free end after the hitches, hanging", ["BranchHitches"], "flex", "real"),
+        ("HangingRope", "functional", "carries the tire straight down from the branch's side", ["RoundTurn"], "flex", "seen"),
+        ("Loop", "functional", "over the front shoulder, under the bead, up the back: holds the tire", ["HangingRope", "Tire"],
+         "flex", "real"),
+        ("TireHitches", "functional", "two half hitches on top of the tire close the loop (the lump in the video)", ["Loop"],
+         "fixed", "seen"),
+        ("TireTail", "decorative", "the free end lying on the tire", ["TireHitches", "Tire"], "flex", "real"),
+        ("Tire", "functional", "the seat, hanging right under the rope", ["Loop"], "free", "seen"),
+    ],
+    supports=("branch",), tier="complex", category="suspended")
 
 
 def math_node(nodes, links, op, a, b=None):
@@ -852,6 +869,11 @@ def to_blender(v):
 
 everything = ["TireSwing"]
 model.qc["rope"] = rope_audit()
+# Measured at finish: the hanging rope runs from the branch (outside the model) straight down to where the loop lies on the
+# tire (the loop's middle spans the hole under the bead and touches nothing: not a point for this)
+hang_first, hang_last = ROPE_PARTS["hanging"]
+model.route("HangingRope", [ROPE_PATH[hang_first], ROPE_PATH[hang_last], ROPE_PATH[ROPE_PARTS["loop"][0]]],
+            tol=0.014, free=(0,), unity=True)
 model.finish_textured(
     size=2048,
     joined_name="TireSwing",

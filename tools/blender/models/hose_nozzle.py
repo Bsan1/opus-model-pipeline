@@ -10,8 +10,7 @@ a big, round yellow body; on the back face of the yellow body a black knurled fl
 a black stripe on its upper front; the green grip comes down from under the yellow body with black finger grooves in front; behind it a yellow
 rear trigger coming down from the yellow body. A guess (off screen): the front face of the head (nozzle holes), the coupling and the hose.
 
-Mechanical logic: water goes from the coupling through the grip into the yellow body, from there through the neck to the nozzles in the head; the flow knob
-opens the valve in the yellow body; the rear trigger hangs on the joint under the yellow body and nears the grip when squeezed by the palm.
+Mechanical logic: the component plan (model.plan below); the trigger's hinge is measured (model.attach).
 
 Textured pipeline (21 October 2026): moulded plastic with a fine grain, the colours sampled from the 0:21 frame (green head
 sRGB 33/117/68, yellow body 202/184/91; the game's sky light lifted the old flat colours to 63/136/87 and 231/200/93, so the
@@ -32,6 +31,23 @@ import opus_model as om  # noqa: E402
 from opus_model import V  # noqa: E402
 
 model = om.Model("hose_nozzle", __file__)
+model.plan(
+    "pistol hose nozzle: held in one hand, the palm squeezes the rear trigger and water sprays from the head",
+    [("video", "0:11-0:53, first person (refs 04, 07, 24)")],
+    [   # name, role, job, attached to, moves, seen/guess/real
+        ("Grip", "structural", "held in the palm, finger grooves; the water runs up inside it", ["hands"], "fixed", "seen"),
+        ("Coupling", "functional", "joins the hose under the grip", ["Grip"], "fixed", "guess"),
+        ("Hose", "functional", "brings the water", ["Coupling"], "flex", "guess"),
+        ("YellowBody", "functional", "valve body between the grip and the neck", ["Grip"], "fixed", "seen"),
+        ("FlowKnob", "functional", "sets the valve (knurled, light ring and dot)", ["YellowBody"], "spin", "seen"),
+        ("Trigger", "functional", "rear trigger: the palm squeezes it towards the grip to open the flow", ["YellowBody", "hands"],
+         "hinge", "seen"),
+        ("Neck", "structural", "carries the water up to the head", ["YellowBody"], "fixed", "seen"),
+        ("Head", "functional", "spray head, nozzle holes in its front", ["Neck"], "fixed", "seen"),
+        ("DialBand", "functional", "turns to choose the spray pattern", ["Head"], "spin", "seen"),
+        ("Stripe", "decorative", "black stripe on the yellow body, as in the video", ["YellowBody"], "fixed", "seen"),
+    ],
+    supports=("hands",), tier="complex", category="machines")
 GREEN = model.moulded_surface("green", (24, 112, 60), "matte", "Head, neck, grip: green plastic; no shine in the video (user: 'no "
                               "shiny material in the video')", rough=0.72, grain=0.08)
 YELLOW = model.moulded_surface("yellow", (198, 182, 90), "matte", "Yellow body and rear trigger: mustard-yellow plastic, matte",
@@ -164,6 +180,7 @@ model.part("Body", build_body(), [GREEN, YELLOW, BLACK, RING, MARK, HOLES, METAL
 model.part("Trigger", build_trigger(), [YELLOW, BLACK], unity=True, location=(HINGE.x, HINGE.y, HINGE.z),
            bevel={"width": 0.001, "segments": 1, "angle": 35.0})
 model.anchor("Joint", HINGE)
+model.attach("TriggerHinge", HINGE, tol=0.004, unity=True)   # measured at finish: the trigger and the body meet at the joint
 model.anchor("Nozzle", V(0, 0, 0))
 model.anchor("HeadBack", V(0, 0, HEAD_BACK))
 model.anchor("Knob", V(0, 0, KNOB_BACK))
@@ -179,6 +196,7 @@ both = ["Body", "Trigger"]
 model.finish_textured(
     size=2048,
     budget=24000,
+    total_budget=24000,   # the whole model (Body + Trigger) fits the same budget
     moving=tuple(both),
     islands="smart",
     ao_distance=0.03,

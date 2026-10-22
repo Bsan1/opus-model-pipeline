@@ -320,3 +320,163 @@ def joint_audit(objects, tol=0.003, near=0.03, min_angle=3.0, max_angle=60.0, el
                 break
     bad.sort(key=lambda b: -min(b[3], b[4]))
     return {"members": members, "ends": len(ends), "bad": len(bad), "worst": bad[:40]}
+
+
+# ----------------------------------------------------------------------------------------------------------------------
+# Construction plausibility (22 October 2026): what the numeric gates above never asked. Is every piece held by something,
+# does a cable or rope reach both things it joins, do two parts really meet at a hinge or a clip? These only catch the
+# measurable half of "does it make sense" (a part floating in mid-air, a cable ending short); whether a design is right is
+# the plan's and the reviewer's job (.claude/skills/model-plausibility).
+# ----------------------------------------------------------------------------------------------------------------------
+
+def _unity(v):
+    return [round(-v.x, 3), round(v.z, 3), round(-v.y, 3)]
+
+
+class ShellMap:
+    """Every polygon of the objects in one BVH (world space), with the shell (connected face set) it belongs to."""
+
+    def __init__(self, objects):
+        import bmesh
+        verts, polys, self.owner, self.shell_object = [], [], [], []
+        for obj in objects:
+            mw = obj.matrix_world
+            bm = bmesh.new()
+            bm.from_mesh(obj.data)
+            bm.verts.ensure_lookup_table()
+            bm.faces.ensure_lookup_table()
+            base = len(verts)
+            verts += [mw @ v.co for v in bm.verts]
+            shell_of = [0] * len(bm.faces)
+            for group in _shell_groups(bm):
+                for f in group:
+                    shell_of[f.index] = len(self.shell_object)
+                self.shell_object.append(obj.name)
+            for f in bm.faces:
+                polys.append([base + v.index for v in f.verts])
+                self.owner.append(shell_of[f.index])
+            bm.free()
+        self.verts, self.polys = verts, polys
+        self.count = len(self.shell_object)
+        self.tree = BVHTree.FromPolygons(verts, polys, epsilon=0.0) if polys else None
+
+    def near(self, point, tol):
+        """The shells with a face within `tol` of the point."""
+        if self.tree is None:
+            return set()
+        return {self.owner[i] for _, _, i, _ in self.tree.find_nearest_range(Vector(point), tol)}
+
+    def distance(self, point):
+        hit = self.tree.find_nearest(Vector(point)) if self.tree else None
+        return hit[3] if hit and hit[0] is not None else float("inf")
+
+
+def connectivity(objects, tol=0.003, spacing=0.05, ground=None, seed=7):
+    """
+    Contact graph of the shells: two shells are joined when their triangles intersect (one runs into the other) or a sample
+    point of one (its vertices, every triangle's centre and points every `spacing` metres over larger triangles) lies within
+    `tol` of the other (one rests on the other); with `ground` (world z) a shell
+    reaching z <= ground + tol stands on the ground. A model should be ONE assembly: every shell held by the others or by
+    the ground. Returns {shells, components, stray: [{object, shells, triangles, unity, size_mm}]}: the stray components
+    are everything outside the main one (the one on the ground, else the biggest).
+    """
+    m = ShellMap(objects)
+    parent = list(range(m.count + 1))   # the last node is the ground
+    ground_node = m.count
+
+    def find(a):
+        while parent[a] != a:
+            parent[a] = parent[parent[a]]
+            a = parent[a]
+        return a
+
+    def union(a, b):
+        ra, rb = find(a), find(b)
+        if ra != rb:
+            parent[rb] = ra
+
+    # Pieces that run into each other (a pin in a plate, a cable entering its tab): their triangles intersect
+    if m.tree is not None:
+        for a, b in m.tree.overlap(m.tree):
+            if m.owner[a] != m.owner[b]:
+                union(m.owner[a], m.owner[b])
+    rng = random.Random(seed)
+    tris = [0] * m.count
+    lo = [None] * m.count
+    hi = [None] * m.count
+    step = spacing * spacing
+    for poly, shell in zip(m.polys, m.owner):
+        corners = [m.verts[i] for i in poly]
+        points = list(corners)
+        for k in range(1, len(corners) - 1):
+            a, b, c = corners[0], corners[k], corners[k + 1]
+            tris[shell] += 1
+            area = (b - a).cross(c - a).length * 0.5
+            points.append((a + b + c) / 3.0)
+            for _ in range(min(int(area / step), 400)):
+                u, v = rng.random(), rng.random()
+                if u + v > 1.0:
+                    u, v = 1.0 - u, 1.0 - v
+                points.append(a + (b - a) * u + (c - a) * v)
+        for p in corners:
+            lo[shell] = Vector(p) if lo[shell] is None else Vector(map(min, lo[shell], p))
+            hi[shell] = Vector(p) if hi[shell] is None else Vector(map(max, hi[shell], p))
+        for p in points:
+            if ground is not None and p.z <= ground + tol:
+                union(ground_node, shell)
+            for other in m.near(p, tol):
+                if other != shell:
+                    union(shell, other)
+
+    groups = {}
+    for s in range(m.count):
+        groups.setdefault(find(s), []).append(s)
+    root_ground = find(ground_node)
+    if root_ground in groups:
+        main = root_ground
+    else:
+        main = max(groups, key=lambda r: sum(tris[s] for s in groups[r])) if groups else None
+    stray = []
+    for root, members in groups.items():
+        if root == main:
+            continue
+        a = Vector(map(min, *[lo[s] for s in members])) if len(members) > 1 else lo[members[0]]
+        b = Vector(map(max, *[hi[s] for s in members])) if len(members) > 1 else hi[members[0]]
+        stray.append({"object": m.shell_object[members[0]], "shells": len(members),
+                      "triangles": sum(tris[s] for s in members), "unity": _unity((a + b) * 0.5),
+                      "size_mm": [round(abs(c) * 1000) for c in (b - a)]})
+    stray.sort(key=lambda s: -s["triangles"])
+    return {"shells": m.count, "components": len(groups), "stray": stray}
+
+
+def check_links(objects, routes, attachments):
+    """
+    routes: [{"name", "points": [Blender xyz], "tol", "free": [indices of points on things outside the model]}]: one shell
+    (the cable, rope or pipe) must pass within tol of every point, and at every end that is not free touch another shell.
+    attachments: [{"name", "point", "tol"}]: at least two shells meet within tol of the point (a hinge, a clip, a bracket).
+    Returns the failures as readable strings (empty: all hold).
+    """
+    m = ShellMap(objects)
+    problems = []
+    for route in routes:
+        tol = route["tol"]
+        sets = [m.near(p, tol) for p in route["points"]]
+        common = set.intersection(*sets) if sets else set()
+        if not common:
+            far = [f"point {i} {_unity(Vector(p))}: nearest surface {m.distance(p) * 1000:.1f} mm, shells near {len(s)}"
+                   for i, (p, s) in enumerate(zip(route["points"], sets))]
+            problems.append(f"route '{route['name']}': no single piece passes within {tol * 1000:.0f} mm of all its "
+                            f"points ({'; '.join(far)})")
+            continue
+        for i in (0, len(route["points"]) - 1):
+            if i in route.get("free", ()):
+                continue
+            if not (sets[i] - common):
+                problems.append(f"route '{route['name']}': its end {i} at {_unity(Vector(route['points'][i]))} touches "
+                                f"nothing within {tol * 1000:.0f} mm (it ends in mid-air)")
+    for attachment in attachments:
+        found = m.near(attachment["point"], attachment["tol"])
+        if len(found) < 2:
+            problems.append(f"attachment '{attachment['name']}' at {_unity(Vector(attachment['point']))}: "
+                            f"{len(found)} piece(s) within {attachment['tol'] * 1000:.0f} mm, needs two that meet")
+    return problems

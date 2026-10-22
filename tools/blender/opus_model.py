@@ -14,6 +14,7 @@ Outputs:
 - Assets/Opus/ModelSpecs/<name>.json: the sizes the Unity test compares the imported model against (in Unity axes)
 - Builds/Models/<name>/*.png and views.json: contact sheet views (PowerShell labels and combines them)
 """
+import hashlib
 import json
 import math
 import os
@@ -122,6 +123,17 @@ SURFACE_KINDS = {
 # Preview roughness (the look in Unity comes from the shader)
 # Surface finish -> Blender preview (roughness, metallic). The Unity counterpart is SurfaceLibrary.ModelFinishes (same names).
 FINISHES = {"glossy": (0.22, 0.0), "satin": (0.5, 0.0), "matte": (0.85, 0.0), "metallic": (0.2, 1.0)}
+
+# The component plan's words (Model.plan)
+PLAN_TIERS = ("simple", "complex")
+PLAN_SOURCE_KINDS = ("video", "image", "model", "text")
+PLAN_ROLES = ("functional", "structural", "decorative")
+PLAN_MOVES = ("fixed", "hinge", "slide", "spin", "flex", "free")
+PLAN_SEEN = ("seen", "guess", "real")
+PLAN_CATEGORIES = ("machines", "suspended", "buildings", "organic")   # .claude/skills/model-plausibility/categories/*.md
+# Preview (tools/Models.ps1 -Preview): validation, the plan and the construction gate, then labelled renders only; no other
+# gates, no baking, no FBX or spec file (Builds/Models/<name>_preview.png). For looking at the structure before detailing.
+PREVIEW = os.environ.get("OPUS_PREVIEW") == "1"
 
 
 def to_unity(v):
@@ -481,6 +493,12 @@ UNITY_TO_BLENDER = Matrix(((-1.0, 0.0, 0.0, 0.0), (0.0, 0.0, -1.0, 0.0), (0.0, 1
 
 def V(x, y, z):
     return Vector((x, y, z))
+
+
+def _to_blender(unity_point):
+    """Unity axes -> Blender axes (the inverse of to_unity)."""
+    x, y, z = unity_point
+    return Vector((-x, -z, y))
 
 
 def rounded_rect(half_x, z_back, z_front, radius, corner_steps=6, center_x=0.0):
@@ -1239,6 +1257,10 @@ class Model:
         self.qc = {}               # quality gates (qc.py): holes, z-fighting, thin faces; Builds/QC/<model>.json
         self.surface_materials = {}  # slot name -> registered material (MATERIALS) of the tiled models
         self.tiled = False         # building with tiling textures (finish(tiled=True))
+        self.plan_data = None      # the component plan (plan()): written to the spec file and the contact sheet
+        self.routes = []           # cables, ropes, pipes that must reach what they join (route())
+        self.attachments = []      # points where two parts must meet (attach())
+        self.free_parts = set()    # parts allowed to stand apart (part(free=True))
         bpy.ops.wm.read_factory_settings(use_empty=True)
         scene = bpy.context.scene
         scene.unit_settings.system = "METRIC"
@@ -1454,10 +1476,122 @@ class Model:
         """Connection point (in Unity axes): written to the spec file, the Unity test compares it with its in-game counterpart."""
         self.anchors.append({"name": name, "position": _vec(unity_point)})
 
+    def plan(self, purpose, sources, components, supports=("ground",), tier="complex", category=()):
+        """
+        The component plan, written at the top of the generator before any geometry (.claude/skills/model-plausibility):
+        what the object is for, where its design comes from, and for every important component what it does, what holds it,
+        whether it moves and whether its form was seen or guessed. Decorative details are fine; a detail that suggests a
+        function (a button, a cable, a latch) has to have it.
+        purpose: what the object is and how it is used, one sentence.
+        sources: [(kind, where)]: kind video | image | model | text; where: frame times, a file, the user's words.
+        components: [(name, role, job, attaches_to, moves, source)]:
+          role functional | structural | decorative; job: what it does (or, if decorative, why it is there);
+          attaches_to: [names of other components or of `supports`];
+          moves fixed | hinge | slide | spin | flex | free; source seen | guess | real (from real-world references).
+        supports: what holds the whole object from outside ("ground", "hands", "branch", "wall" ...).
+        tier: "simple" (the gates and one look at the contact sheet) or "complex" (also a preview and an independent review).
+        category: which guidance applies (PLAN_CATEGORIES; the skill's categories/<name>.md, given to the reviewer).
+        Raises at once on unknown words, a component attached to nothing, or one with no load path to a support.
+        """
+        problems = []
+        if tier not in PLAN_TIERS:
+            problems.append(f"tier '{tier}' is not one of {PLAN_TIERS}")
+        category = (category,) if isinstance(category, str) else tuple(category)
+        for c in category:
+            if c not in PLAN_CATEGORIES:
+                problems.append(f"category '{c}' is not one of {PLAN_CATEGORIES}")
+        for kind, _ in sources:
+            if kind not in PLAN_SOURCE_KINDS:
+                problems.append(f"source kind '{kind}' is not one of {PLAN_SOURCE_KINDS}")
+        names = [c[0] for c in components]
+        duplicates = sorted({n for n in names if names.count(n) > 1})
+        if duplicates:
+            problems.append(f"components named twice: {duplicates}")
+        known = set(names) | set(supports)
+        edges = {n: set() for n in known}
+        for name, role, job, attaches, moves, source in components:
+            if role not in PLAN_ROLES:
+                problems.append(f"{name}: role '{role}' is not one of {PLAN_ROLES}")
+            if moves not in PLAN_MOVES:
+                problems.append(f"{name}: moves '{moves}' is not one of {PLAN_MOVES}")
+            if source not in PLAN_SEEN:
+                problems.append(f"{name}: source '{source}' is not one of {PLAN_SEEN}")
+            if not job.strip():
+                problems.append(f"{name}: no job (what it does, or why a decorative detail is there)")
+            if not attaches:
+                problems.append(f"{name}: attached to nothing")
+            for other in attaches:
+                if other not in known:
+                    problems.append(f"{name}: attached to '{other}', which is neither a component nor a support")
+                else:
+                    edges[name].add(other)
+                    edges[other].add(name)
+        held, stack = set(supports), list(supports)
+        while stack:
+            for other in edges.get(stack.pop(), ()):
+                if other not in held:
+                    held.add(other)
+                    stack.append(other)
+        loose = [n for n in names if n not in held]
+        if loose:
+            problems.append(f"no load path to {list(supports)} from: {loose}")
+        if problems:
+            raise ValueError(f"{self.name}: plan: " + "; ".join(problems))
+        self.plan_data = {
+            "purpose": purpose, "tier": tier, "category": list(category), "supports": list(supports),
+            "sources": [{"kind": k, "where": w} for k, w in sources],
+            "components": [{"name": n, "role": r, "job": j, "attaches": list(a), "moves": m, "source": s}
+                           for n, r, j, a, m, s in components],
+        }
+
+    def route(self, name, points, tol=0.005, free=(), unity=False):
+        """
+        A cable, rope, pipe or rod that runs from one thing to another: `points` lie on its centreline (its two ends and any
+        clip or guide on the way). Checked at finish: one piece passes within `tol` of every point (tol > its radius) and
+        each end not listed in `free` (indices of points on things outside the model) touches another piece.
+        """
+        pts = [_to_blender(p) if unity else Vector(p) for p in points]
+        self.routes.append({"name": name, "points": pts, "tol": tol, "free": tuple(free)})
+
+    def attach(self, name, point, tol=0.004, unity=False):
+        """A point where two pieces must meet (a hinge pin, a clip, a bracket, a bolt): checked at finish."""
+        self.attachments.append({"name": name, "point": _to_blender(point) if unity else Vector(point), "tol": tol})
+
+    def _gate_construction(self, ground, separate=False, contact=0.003, raise_errors=True):
+        """
+        Construction gate (qc.connectivity, qc.check_links): every piece is held by the others or the ground (no part
+        floating in mid-air), every declared route reaches what it joins, every declared attachment meets. Leaves and
+        parts made with free=True are left out.
+        """
+        solid = [obj for obj, _ in self.parts if obj.name not in self.foliage and obj.name not in self.free_parts]
+        groups = [[obj] for obj in solid] if separate else [solid]
+        result = {"shells": 0, "components": 0, "stray": [], "routes": len(self.routes),
+                  "attachments": len(self.attachments), "problems": []}
+        for group in groups:
+            if not group:
+                continue
+            r = qc.connectivity(group, tol=contact, ground=ground)
+            result["shells"] += r["shells"]
+            result["components"] += r["components"]
+            result["stray"] += r["stray"]
+        result["problems"] = qc.check_links(solid, self.routes, self.attachments) if solid else []
+        result["stray"] = result["stray"][:20]
+        floating = len(result["stray"])
+        self.qc["construction"] = result
+        log(f"{self.name}: QC construction: {floating} pieces held by nothing ({result['shells']} shells); links: "
+            f"{result['routes']} routes, {result['attachments']} attachments, {len(result['problems'])} failing")
+        if (floating or result["problems"]) and raise_errors:
+            self._write_qc()
+            raise RuntimeError(f"{self.name}: QC construction: {floating} pieces held by nothing (object, shells, tris, "
+                               f"Unity centre, size mm): {result['stray'][:8]}; {'; '.join(result['problems'])}")
+        return result
+
     def part(self, name, bm, materials, location=(0.0, 0.0, 0.0), closed=True, bevel=None, smooth=True, sharp=60.0,
-             unity=False, cutters=None, weighted=True, foliage=False, tone_jitter=0.0, ao_grid=None):
+             unity=False, cutters=None, weighted=True, foliage=False, tone_jitter=0.0, ao_grid=None, free=False):
         """
         Builds a part (object) from a bmesh.
+        free: the part may stand apart from the rest (the calibration markers); every other part must be held by the others
+        or the ground (the construction gate).
         tone_jitter: the tone of every separate shell (board, shingle tab) varies randomly by this fraction (baked into the vertex colour).
         ao_grid: (x, y, z) metres (None = no cut on that axis; Unity axes if unity=True): long faces are split at these
         intervals. AO is baked into the vertices; if a 3 m board only has its end vertices, the darkness of an end under the trim
@@ -1509,6 +1643,8 @@ class Model:
                 poly.use_smooth = True
             mesh.normals_split_custom_set_from_vertices(normals)
             self.foliage.add(name)
+        if free:
+            self.free_parts.add(name)
         if tone_jitter > 0.0:
             self.tone_jitter[name] = tone_jitter
         for index, cutter_bm in enumerate(cutters or []):
@@ -1843,30 +1979,57 @@ class Model:
     def _write_qc(self):
         qc.write_report(ROOT, self.name, self.qc)
 
+    def _join(self, parts, name):
+        """Joins the parts into one object of that name; returns (object, closed)."""
+        closed_all = all(c for _, c in parts)
+        bpy.ops.object.select_all(action="DESELECT")
+        for obj, _ in parts:
+            obj.select_set(True)
+        bpy.context.view_layer.objects.active = parts[0][0]
+        bpy.ops.object.join()
+        joined = bpy.context.view_layer.objects.active
+        joined.name = joined.data.name = name
+        return joined, closed_all
+
+    def _preview(self, views, references, budget, total_budget, ground, separate, contact, join_name, apart=()):
+        """Models.ps1 -Preview: the cheap checks, then labelled renders into Builds/Models/<name>_preview (no FBX, no spec)."""
+        self.drop_unused_slots()
+        stats = self.validate(budget, total_budget)
+        construction = self._gate_construction(ground, separate=separate, contact=contact, raise_errors=False)
+        static = [(o, c) for o, c in self.parts if o.name not in apart]
+        kept = [(o, c) for o, c in self.parts if o.name in apart]   # taken before the join removes the other objects
+        if join_name and len(static) > 1:
+            self.parts = [self._join(static, join_name)] + kept
+        if views:
+            self.render(views, references or [], folder=self.name + "_preview")
+        preview = {"model": self.name, "preview": True, "objects": stats, "anchors": self.anchors,
+                   "surfaces": [self.surface_notes[n] for n in self.materials], "plan": self.plan_data,
+                   "qc": {"construction": construction}, "geometry": self._geometry_hash()}
+        with open(os.path.join(RENDER_DIR, self.name + "_preview", "spec.json"), "w", encoding="utf-8") as f:
+            json.dump(preview, f, ensure_ascii=False, indent=2)
+        log(f"{self.name}: preview, {len(self.parts)} parts, " + ", ".join(f"{s['name']} {s['triangles']} tris" for s in stats))
+
     def finish(self, views=None, references=None, budget=None, ao_distance=0.08, ao_together=True, ground=None, join=None,
-               tiled=False):
+               tiled=False, total_budget=None, contact=0.003):
         """
         Validates, bakes the ambient occlusion (AO) into the vertex colour, writes the FBX and the spec file, renders the
         contact sheet views. Quality gates (a failure stops the build): z-fighting 0, holes 0, joints 0 (`ground`: world z below which no
-        inspection camera goes).
+        inspection camera goes), construction (nothing held by nothing within `contact` metres; routes and attachments).
+        budget: triangles per object; total_budget: triangles of the whole model.
+        With OPUS_PREVIEW=1 (Models.ps1 -Preview) only the cheap checks and the renders run (_preview).
         join: joins all parts into one object of that name (one mesh, a material per surface).
         tiled: buildings; UVs in metres along each piece's grain (tile_uv) and the tiling textures of Models/Tiling
         (write_tile_sets) instead of an atlas: sharp at any distance, no seams to bleed; AO and the per-piece tone stay in the
         vertex colour, a colour variant only changes the material colour.
         """
+        if PREVIEW:
+            return self._preview(views, references, budget, total_budget, ground, not ao_together, contact, join)
         self.drop_unused_slots()
-        self.validate(budget)
+        self.validate(budget, total_budget)
         self._gate_overlaps(separate=not ao_together)
+        self._gate_construction(ground, separate=not ao_together, contact=contact)
         if join and len(self.parts) > 1:
-            closed_all = all(c for _, c in self.parts)
-            bpy.ops.object.select_all(action="DESELECT")
-            for obj, _ in self.parts:
-                obj.select_set(True)
-            bpy.context.view_layer.objects.active = self.parts[0][0]
-            bpy.ops.object.join()
-            joined = bpy.context.view_layer.objects.active
-            joined.name = joined.data.name = join
-            self.parts = [(joined, closed_all)]
+            self.parts = [self._join(self.parts, join)]
         self._gate_holes(ground, separate=not ao_together)
         self._gate_joints(separate=not ao_together)
         if tiled:
@@ -1880,7 +2043,7 @@ class Model:
             for name, material in self.materials.items():
                 _tiled_preview(material, MATERIALS[self.surface_materials[name]])
             self.tiled = True
-        stats = self.validate(budget)
+        stats = self.validate(budget, total_budget)
         self._write_qc()
         self.bake_ao(ao_distance, together=ao_together)
         self.export()
@@ -1892,7 +2055,8 @@ class Model:
 
     def finish_textured(self, size=2048, moving=(), joined_name=None, views=None, references=None, budget=None,
                         ao_distance=0.3, ao_floor=0.35, margin=8, islands="source", chunk=1.0, export=True, untextured=(),
-                        ao_together=True, cut=None, pack_shape="CONCAVE", ground=None, min_px=1.5):
+                        ao_together=True, cut=None, pack_shape="CONCAVE", ground=None, min_px=1.5, total_budget=None,
+                        contact=0.003):
         """
         Textured model (new pipeline):
         1. Validates; stops if there are overlapping faces in the same plane (z-fighting).
@@ -1921,10 +2085,16 @@ class Model:
         """
         import numpy as np
 
+        if PREVIEW:
+            apart = set(moving) | set(untextured)
+            first = next((o.name for o, _ in self.parts if o.name not in apart), None)
+            return self._preview(views, references, budget, total_budget, ground, not ao_together, contact,
+                                 joined_name or first, apart)
         self.drop_unused_slots()
-        self.validate(budget)
+        self.validate(budget, total_budget)
         # Parts that only overlap in the file (they are apart in game) are checked one by one
         self._gate_overlaps(separate=not ao_together)
+        self._gate_construction(ground, separate=not ao_together, contact=contact)
         self._gate_holes(ground, separate=not ao_together)
         self._gate_joints(separate=not ao_together)
 
@@ -1933,15 +2103,7 @@ class Model:
         if len(static) > 1:
             # The parts kept apart, taken before the join (joining removes the other objects)
             apart = [(o, c) for o, c in self.parts if o.name in moving or o.name in untextured]
-            closed_all = all(c for _, c in static)
-            bpy.ops.object.select_all(action="DESELECT")
-            for obj, _ in static:
-                obj.select_set(True)
-            bpy.context.view_layer.objects.active = static[0][0]
-            bpy.ops.object.join()
-            joined = bpy.context.view_layer.objects.active
-            joined.name = joined.data.name = joined_name or static[0][0].name
-            self.parts = [(joined, closed_all)] + apart
+            self.parts = [self._join(static, joined_name or static[0][0].name)] + apart
         objects = [obj for obj, _ in self.parts if obj.name not in untextured]
         if cut:
             for obj in objects:
@@ -2117,7 +2279,7 @@ class Model:
         if untextured:
             self.atlas["untextured"] = sorted(untextured)
             self.bake_ao(ao_distance, only=untextured)
-        stats = self.validate(budget)
+        stats = self.validate(budget, total_budget)
         self._write_qc()
         if export:
             self.export()
@@ -2281,7 +2443,7 @@ class Model:
         scene.render.engine = engine
         bpy.ops.object.select_all(action="DESELECT")
 
-    def validate(self, budget):
+    def validate(self, budget, total_budget=None):
         errors = []
         stats = []
         for obj, closed in self.parts:
@@ -2328,6 +2490,9 @@ class Model:
                 "materials": [m.name for m in obj.data.materials],
             })
             bm.free()
+        total = sum(s["triangles"] for s in stats)
+        if total_budget and total > total_budget:
+            errors.append(f"the whole model: {total} tris, total budget {total_budget}")
         if errors:
             raise RuntimeError("Model validation failed:\n  " + "\n  ".join(errors))
         return stats
@@ -2379,6 +2544,14 @@ class Model:
             spec["qc"] = self.qc
         if self.tiled:
             spec["tiled"] = True
+        if self.plan_data:
+            spec["plan"] = self.plan_data
+        if self.routes or self.attachments:
+            spec["links"] = {"routes": [{"name": r["name"], "points": [_vec(to_unity(p)) for p in r["points"]],
+                                         "free": list(r["free"])} for r in self.routes],
+                             "attachments": [{"name": a["name"], "point": _vec(to_unity(a["point"]))}
+                                             for a in self.attachments]}
+        spec["geometry"] = self._geometry_hash()
         path = os.path.join(SPEC_DIR, self.name + ".json")
         with open(path, "w", encoding="utf-8") as f:
             json.dump(spec, f, ensure_ascii=False, indent=2)
@@ -2388,13 +2561,28 @@ class Model:
     # Contact sheet views
     # ----------------------------------------------------------------------------------------------------------
 
-    def render(self, views, references):
+    def _geometry_hash(self):
+        """A short hash of the exported geometry (positions to 0.1 mm, faces, materials): a reviewed or approved model is
+        recognised as unchanged by it (tools/Verify.ps1)."""
+        digest = hashlib.sha1()
+        for obj, _ in sorted(self.parts, key=lambda p: p[0].name):
+            digest.update(obj.name.encode())
+            mw = obj.matrix_world
+            for v in obj.data.vertices:
+                digest.update(("%.4f %.4f %.4f;" % tuple(mw @ v.co)).encode())
+            for p in obj.data.polygons:
+                digest.update((",".join(map(str, p.vertices)) + f"/{p.material_index};").encode())
+            digest.update("|".join(m.name for m in obj.data.materials if m).encode())
+        return digest.hexdigest()[:16]
+
+    def render(self, views, references, folder=None):
         """
         views: [{"file", "label", "objects": [name...], "direction": (x,y,z), "zoom": 1, "target": (x,y,z)|None,
                  "offsets": {name: (x,y,z)}, "ortho": False}]
         references: [{"label", "path" (relative to the project root), "crop": [x, y, w, h]}] (PowerShell crops)
+        folder: Builds/Models/<folder> (default the model's name; the preview uses <name>_preview)
         """
-        out_dir = os.path.join(RENDER_DIR, self.name)
+        out_dir = os.path.join(RENDER_DIR, folder or self.name)
         os.makedirs(out_dir, exist_ok=True)
         for old in os.listdir(out_dir):
             os.remove(os.path.join(out_dir, old))

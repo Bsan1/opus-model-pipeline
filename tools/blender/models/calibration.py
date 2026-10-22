@@ -51,7 +51,7 @@ arrow("Arrow_Up", "Z", 0.95, 1.18, 1.3, green, (0.0, 0.0, 0.0))
 bm = bmesh.new()
 bmesh.ops.create_uvsphere(bm, u_segments=24, v_segments=12, radius=0.08, matrix=Matrix.Identity(4))
 om.finish_shell(bm)
-model.part("Marker", bm, [yellow], location=(-0.7, -0.7, 0.2))
+model.part("Marker", bm, [yellow], location=(-0.7, -0.7, 0.2), free=True)   # a position probe, not part of anything
 
 everything = ["Cube", "Arrow_Front", "Arrow_Right", "Arrow_Up", "Marker"]
 model.finish(

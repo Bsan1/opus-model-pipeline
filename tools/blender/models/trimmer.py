@@ -14,9 +14,7 @@ front on the ground. Read from the 0:07 frame zoomed in (21 October 2026):
 The earlier model had four dark button squares on top, an O-ring handle and a wide flat guard: none of them is in the video.
 A guess: the trigger, the vent and latch details, the spool and bump knob under the head (not visible).
 
-Mechanical logic: the battery is attached to the back of the body (with a latch), the shaft leaves the clamp at the front of the
-body and enters the gearbox in the head; the D handle is clamped to the shaft; the guard is fixed to the gearbox with an arm,
-the line comes out of the spool's two holes.
+Mechanical logic: the component plan (model.plan below).
 
 Surfaces: moulded plastics with a faint tone variation and a fine grain in the bump, the shaft painted aluminium; all baked into
 the atlas (base colour, normal, AO per part, roughness).
@@ -37,6 +35,22 @@ import opus_model as om  # noqa: E402
 from opus_model import V  # noqa: E402
 
 model = om.Model("trimmer", __file__)
+model.plan(
+    "battery string trimmer: held in both hands, the spinning line cuts grass along edges",
+    [("video", "0:07-0:10, 0:50-0:52, first person")],
+    [   # name, role, job, attached to, moves, seen/guess/real
+        ("Motor", "functional", "body with the motor, in the rear hand", ["Shaft", "hands"], "fixed", "seen"),
+        ("Battery", "functional", "powers the motor; slides into the body's back, red latch", ["Motor"], "fixed", "seen"),
+        ("Trigger", "functional", "switches the motor, under the body", ["Motor", "hands"], "hinge", "guess"),
+        ("Shaft", "structural", "carries the head; the drive runs inside it", ["Motor"], "fixed", "seen"),
+        ("DHandle", "functional", "the front hand's grip, clamped on the shaft", ["Shaft", "hands"], "fixed", "seen"),
+        ("Gearbox", "functional", "turns the drive down to the spool; knob ringed in orange", ["Shaft"], "fixed", "seen"),
+        ("Head", "functional", "flat puck carrying the spool", ["Gearbox"], "spin", "seen"),
+        ("Guard", "functional", "narrow lip at the back, keeps cuttings off the user", ["Gearbox"], "fixed", "seen"),
+        ("Spool", "functional", "holds the line, bump knob underneath", ["Head"], "spin", "guess"),
+        ("Line", "functional", "cuts the grass; out of the spool's two holes", ["Spool"], "spin", "seen"),
+    ],
+    supports=("hands",), tier="complex", category="machines")
 
 
 def plastic(name, rgb, finish, note, **look):
@@ -235,7 +249,8 @@ model.part("Motor", build_motor(), [RED, BATTERY, WHITE, LABEL, BLACK, KEYS, REC
 model.part("DHandle", build_handle(), [BLACK], unity=True, bevel={"width": 0.0012, "segments": 1, "angle": 35.0})
 model.part("Head", build_head(), [BLACK, ORANGE], unity=True, bevel={"width": 0.0012, "segments": 1, "angle": 35.0})
 model.part("Line", build_lines(True), [LINE], unity=True, location=(0.0, SPOOL_Y, 0.0), smooth=False)
-model.part("LineTips", build_lines(False), [LINE], unity=True, location=(0.0, SPOOL_Y, 0.0), smooth=False)
+# free: the two tips are apart from each other; each comes out of a spool hole in the Head, another object
+model.part("LineTips", build_lines(False), [LINE], unity=True, location=(0.0, SPOOL_Y, 0.0), smooth=False, free=True)
 model.anchor("Spool", V(0.0, SPOOL_Y, 0.0))
 model.anchor("BodyFront", BODY_FRONT)
 model.anchor("BatteryBack", BATTERY_BACK)
@@ -250,6 +265,7 @@ def unity_dir(x, y, z):
 model.finish_textured(
     size=2048,
     budget=20000,
+    total_budget=20000,   # all six parts together
     moving=("Shaft", "Motor", "DHandle", "Head", "Line", "LineTips"),
     islands="smart",
     ao_distance=0.05,

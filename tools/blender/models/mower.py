@@ -11,10 +11,8 @@ tubes going down to the black joints above the rear wheels.
 A guess (not visible, simple and sensible): the front/underside of the deck, the engine block, the wheel plates and axles, the top of the handle
 (off screen): folding nuts, the grab bar, the control bar and its cable.
 
-Mechanical logic: every part has a job and a place it attaches to. The wheels sit on axles in plates bolted to the deck; the lower handle
-tubes are bolted to the rear plates, the upper U tube to them at the fold with wing nuts; the control bar is hinged to the upper tubes,
-its cable runs down the handle from the tab at the bar's right end with clips, passes over the rear body and enters the brake tab
-on the engine block; the starter rope stays in its cover on the engine (it does not go to the handle).
+Mechanical logic: the component plan (model.plan below) says what every part does and what holds it; the control cable's
+route is measured (model.route in build_handle).
 
 The points are written in Unity axes (x right, y up, z front; the origin below the deck centre, on the ground). The sizes match
 MowerModel/MowerTool in the game; the connection points (axles, grips) are written to the spec file and the Unity test
@@ -40,6 +38,36 @@ FRONT_HUB_IN, REAR_HUB_IN = 0.0124, 0.0151      # the wheel's inner hub face (fr
 SIDES = (1.0, -1.0)
 
 model = om.Model("mower", __file__)
+model.plan(
+    "push mower: cuts the grass while the player pushes it from behind by the handle",
+    [("video", "0:02, 0:46, 1:12 (seen only from behind and above)")],
+    [   # name, role, job, attached to, moves, seen/guess/real
+        ("Wheels", "functional", "roll the mower (wheel.fbx on the axle pins)", ["ground", "Axles"], "spin", "seen"),
+        ("Axles", "structural", "pins the wheels turn on", ["WheelPlates"], "fixed", "guess"),
+        ("WheelPlates", "structural", "carry the axles, bolted to the deck", ["Deck"], "fixed", "guess"),
+        ("Deck", "structural", "red deck: shields the blade, carries the engine", ["WheelPlates"], "fixed", "seen"),
+        ("RearBody", "structural", "stepped rear body and flap behind the deck", ["Deck"], "fixed", "seen"),
+        ("Engine", "functional", "drives the blade; block, fuel tank and carburettor under the cover (never seen)", ["Deck"],
+         "fixed", "guess"),
+        ("EngineCover", "structural", "dark grey cover: ridge, two hollows, a lip", ["Engine"], "fixed", "seen"),
+        ("AirGrille", "functional", "cooling air in through the cover's front", ["EngineCover"], "fixed", "seen"),
+        ("FuelCap", "functional", "closes the tank's neck coming up through the left hollow (knurled)", ["Engine"], "fixed",
+         "seen"),
+        ("PrimerBulb", "functional", "primes the carburettor under the right hollow", ["Engine"], "fixed", "seen"),
+        ("Starter", "functional", "recoil starter; its rope handle rests on the cover, the rope stays at the engine",
+         ["Engine"], "fixed", "seen"),
+        ("BrakeTab", "functional", "the engine brake lever the cable pulls", ["Engine"], "hinge", "guess"),
+        ("LowerTubes", "structural", "handle tubes bolted to the rear plates", ["WheelPlates"], "fixed", "seen"),
+        ("UpperTube", "structural", "folding U tube, wing nuts at the fold", ["LowerTubes"], "hinge", "guess"),
+        ("Foam", "functional", "the grip the hands push on", ["UpperTube", "hands"], "fixed", "guess"),
+        ("ControlBar", "functional", "held against the grip to keep the engine running", ["UpperTube", "hands"], "hinge",
+         "guess"),
+        ("ControlCable", "functional", "from the bar's tab down the handle to the brake tab", ["ControlBar", "BrakeTab", "Clips"],
+         "flex", "guess"),
+        ("Clips", "structural", "hold the cable to the tubes, the rear body and the deck", ["LowerTubes", "UpperTube", "RearBody"],
+         "fixed", "guess"),
+    ],
+    supports=("ground", "hands"), tier="complex", category="machines")
 RED = model.surface("Metal", "#C21F22", "glossy", "Housing: red baked-paint sheet metal; thin bright lines on the dome and the edges in the video")
 RED_DARK = model.surface("Metal", "#8F1A1F", "glossy", "Rear flap: the same painted sheet metal as the housing, dark red; a dark red area on top of the rear body in the video")
 SHROUD = model.surface("Plastic", "#2F2E31", "matte", "Engine cover: textured black plastic; no highlights in the video, only the upward faces are light")
@@ -362,6 +390,9 @@ def build_handle():
                V(0.175, 0.19, -0.176), V(0.15, 0.1725, -0.172), V(0.12, 0.19, -0.152), V(0.093, 0.206, -0.138),
                V(0.087, 0.222, -0.114), V(0.083, 0.234, -0.09)]
     om.sweep(bm, om.spline(points, 8), 0.0032, 8, material=4)
+    # Measured at finish: the cable leaves the bar's tab, passes both body clips and ends in the brake tab
+    model.route("ControlCable", [points[0], V(0.206, 0.2136, -0.25), V(0.15, 0.1725, -0.172), points[-1]], tol=0.007,
+                unity=True)
     # The clips holding the cable to the rear body and the deck
     om.box(bm, (0.199, 0.2104, -0.256), (0.213, 0.219, -0.244), material=2)
     om.box(bm, (0.143, 0.1665, -0.178), (0.157, 0.1775, -0.166), material=2)
@@ -410,6 +441,7 @@ def unity_dir(x, y, z):
 everything = ["Housing", "Motor", "Handle"]
 model.finish(
     budget=30000,
+    total_budget=30000,   # Housing + Motor + Handle together
     views=[
         {"file": "player", "label": "From the player's side (from behind and above)", "objects": ["Housing", "Motor"],
          "direction": unity_dir(0.0, 0.815, -0.578), "zoom": 1.05, "ground": 0.0},

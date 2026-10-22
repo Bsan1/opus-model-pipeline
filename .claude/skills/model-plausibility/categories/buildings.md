@@ -1,0 +1,29 @@
+# Buildings and built structures
+
+- **Pipeline:** `finish(join=..., tiled=True)`. Do not use an atlas: a 4096 atlas over a house gave sub-pixel faces and black lines.
+  - Every surface names a registered material (`MATERIALS`; different stuff or context, different look).
+  - Colour variants come from the material colour.
+- **Build it the way it is really built:**
+  - siding boards lap over the board below, with their ends under the corner boards and casings;
+  - openings are lined with jamb boards;
+  - deck boards rest on joists and rim joists; a ledger on the wall carries the inner end;
+  - stair stringers are notched, risers reach under the tread, and treads run into the riser behind;
+  - lattice sits behind the corner posts;
+  - corner board tops follow the soffit slope;
+  - at the eave corner the rake board covers the fascia's end;
+  - the gutter hangs on the fascia; downspouts turn from the gutter to the wall and run down it.
+- **Every load reaches the ground.** A deck needs posts or piers under its frame, or a ledger on the wall plus supports at the outer edge. A porch roof sits on a ledger and on a beam carried by posts. A long downspout is strapped to the wall, not held only at the gutter. The construction gate catches pieces that touch nothing; whether the support would really carry the load is a review question.
+- **Joints sit:** sloped members (rake boards, rafters, stringers) are made with `om.board`, their ends cut by the plane they meet. The joint gate fails a square-cut end.
+- **Roofs:**
+  - shingle strips are two exposures long (two layers everywhere), with rows offset by a third of a strip;
+  - shingles overhang the rake boards and the fascia;
+  - the sheathing runs under the overhang, with a plumb eave end;
+  - row lines go in the mipmapped texture (`om.preset_faces`). Geometric butts alone gave moiré from 8 m.
+- **Z-fighting patterns:**
+  - hidden repeated ends are staggered 2.5–4 mm per row (siding, shingles, ridge caps);
+  - sills and thresholds are raised 4 mm;
+  - rows reaching a ridge are cut 4 mm apart.
+- **Vertex AO needs vertices along long faces** (`part(ao_grid=...)`). A door panel is built inside its frame, not under it.
+- **Measure proportions from the frame:** the door height against the wall, the roof pitch, the side/front ratio. The shed is 2.6 × 2.6 m with a 45° roof, not 3 × 2.6 m with 34°.
+- **Engine:** a mesh over 64k vertices stays out of static batching (`YardBuilder.Batchable`).
+- **Blind spots of the gates:** thin slots that look through onto front faces (a riser 5 mm above a tread). Look at close-up shots in the built game (the `u16_showroom` scenario in the game project: deck corner, steps, downspout, porch and eave corners), and at far shots for moiré.

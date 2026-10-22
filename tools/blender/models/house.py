@@ -13,11 +13,7 @@ door on the right, above them a gently sloped porch roof covering the right half
 a low deck along the facade: a cedar-coloured rim joist, a railing with white balusters, a white diagonal lattice underneath;
 grey-brown asphalt shingles; a rose-brown gutter at the eave, a downspout at the corner; a thin black vent pipe on the roof; no chimney.
 
-Mechanical logic: every siding board laps over the one below, the ends hide under the corner boards and casings;
-windows and doors sit in openings carved into the wall, lined with jamb boards; the gutter hangs on the fascia board, the downspouts
-turn from the end of the gutter to the wall with an elbow and run down the gable wall (they do not pierce the porch roof), draining onto a stone at the bottom;
-the decking rests on the rim joists, the railing posts on the joists, the balusters between the bottom and top rails; the porch roof
-rests on a ledger on the wall and on a beam carried by the posts in front.
+Mechanical logic: the component plan (model.plan below); the downspouts' routes are measured (model.route).
 
 Unity axes: the origin is the middle of the body's base (ground); the garden facade -Z (really the back of the house), the street facade +Z, the gable
 walls ±X. The sizes match the in-game collision boxes: body 16 x 10 m, eave 6.25 m; deck x -4.2..7.8,
@@ -67,6 +63,43 @@ PORCH_K = (LEDGER_TOP - BEAM_TOP) / (DZ1 - POST_Z)   # porch slope (rise / depth
 PORCH_EAVE_Z = DZ0 - 0.25
 
 model = om.Model("house", __file__)
+model.plan(
+    "two-storey house with a side-gabled roof, a deck on the garden side and a porch roof over its right half",
+    [("video", "0:57 (ref 29), 0:41.6 (ref 30), 0:53.5 (ref 31)")],
+    [   # name, role, job, attached to, moves, seen/guess/real
+        ("Foundation", "structural", "concrete band the walls stand on", ["ground"], "fixed", "seen"),
+        ("WallCore", "structural", "the frame and sheathing everything else is fixed to", ["Foundation"], "fixed", "guess"),
+        ("Siding", "structural", "lap boards, each over the one below; ends under the trim", ["WallCore"], "fixed", "seen"),
+        ("CornerBoards", "structural", "cover the siding ends; tops follow the soffit slope", ["WallCore"], "fixed", "seen"),
+        ("Casings", "structural", "line the openings, jamb boards inside, cover the board ends", ["WallCore"], "fixed", "seen"),
+        ("Windows", "functional", "sliding double sashes in the openings", ["Casings"], "slide", "seen"),
+        ("Doors", "functional", "garden, glass and street doors in their openings", ["Casings"], "hinge", "seen"),
+        ("Sheathing", "structural", "the roof deck on the walls, under the overhangs", ["WallCore"], "fixed", "guess"),
+        ("Shingles", "functional", "shed the rain: two layers, over the rake and fascia", ["Sheathing"], "fixed", "seen"),
+        ("RidgeCaps", "functional", "close the ridge", ["Shingles"], "fixed", "seen"),
+        ("Fascia", "structural", "eave board the gutter hangs on", ["WallCore", "Sheathing"], "fixed", "seen"),
+        ("Soffits", "structural", "close the underside of the overhangs", ["Fascia", "WallCore"], "fixed", "seen"),
+        ("RakeBoards", "structural", "trim the gable edges, cover the fascia's end, cut plumb", ["WallCore", "Sheathing"],
+         "fixed", "seen"),
+        ("VentPipe", "functional", "plumbing vent through the roof", ["Sheathing"], "fixed", "seen"),
+        ("Gutter", "functional", "collects the rain at the eave", ["Fascia"], "fixed", "seen"),
+        ("Downspouts", "functional", "from the gutter's end to the gable wall, down it, out over a splash block", ["Gutter"],
+         "fixed", "seen"),
+        ("SplashBlocks", "functional", "lead the water away from the wall", ["ground"], "fixed", "guess"),
+        ("SkirtPosts", "structural", "corner posts of the deck skirt", ["ground"], "fixed", "guess"),
+        ("DeckFrame", "structural", "ledger on the wall, rim joists, joists every 40 cm", ["WallCore", "SkirtPosts"], "fixed",
+         "guess"),
+        ("Decking", "structural", "cedar boards resting on the joists and rim joists", ["DeckFrame"], "fixed", "seen"),
+        ("Lattice", "decorative", "white diagonal skirt behind the posts, hides the frame", ["SkirtPosts"], "fixed", "seen"),
+        ("Steps", "functional", "notched stringers, treads, risers up to the deck", ["DeckFrame", "ground"], "fixed", "seen"),
+        ("Railing", "functional", "posts bolted inside the rim joists, rails, balusters", ["DeckFrame"], "fixed", "seen"),
+        ("PorchPosts", "structural", "carry the porch beam, standing on the decking", ["Decking"], "fixed", "seen"),
+        ("PorchRoof", "functional", "covers the deck's right half: ledger on the wall, beam on the posts",
+         ["WallCore", "PorchPosts"], "fixed", "seen"),
+        ("Lamp", "functional", "gooseneck barn light right of the glass door", ["WallCore"], "fixed", "seen"),
+        ("DoorHandles", "functional", "open the doors", ["Doors"], "fixed", "guess"),
+    ],
+    supports=("ground",), tier="complex", category="buildings")
 # Tiling textures (21 October 2026): one mesh; every surface gets the tiling texture of its kind in game (painted wood grain
 # from CC0 ambientCG PaintedWood009C, asphalt granules, concrete), UVs in metres along each board's grain, AO and a per-board
 # tone in the vertex colour. A 4096 atlas over the whole house gave 76 px/m and thin parts under a pixel (black lines); tiling
@@ -547,6 +580,10 @@ def build_gutters():
             path = [out, out + Vector((0, -0.12, 0)),
                     Vector((wall_x, top - 0.45, z_down)), Vector((wall_x, top - 0.6, z_down)),
                     Vector((wall_x, 0.36, z_down)), Vector((sx * (HW + 0.24), 0.18, z_down))]
+            # Measured at finish: from inside the gutter down the wall to the shoe, which ends free above the splash block
+            model.route(f"Downspout_{'east' if sx > 0 else 'west'}_{'garden' if sz < 0 else 'street'}",
+                        [path[0], path[3], path[4], path[5]], tol=0.045,
+                        free=(3,), unity=True)
             path = om.fillet(path, 0.06, 4)
             om.sweep(bm, path, 1.0, shape=om.rounded_profile(0.03, 0.04, 0.012, 2), up=(1, 0, 0) if sx > 0 else (-1, 0, 0))
     return bm

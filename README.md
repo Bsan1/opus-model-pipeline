@@ -7,12 +7,16 @@ A build only passes when **measured quality gates** come back clean: no z-fighti
 This is the model pipeline of *Copycat Opus*, a Unity 6 (URP) yard-care game. It was taken out of that project so it can be developed on its own. The game project itself is not part of this repository.
 
 ```
+component plan (model.plan) ── purpose, sources, every component's job, what holds it, how it moves
+   │                            checked at once: a load path from every component to a support
 generator (models/<name>.py)
    │  builds parts with the Model API (opus_model.py): revolve, loft, sweep, board, carve, settle ...
+   ├─ complex models: preview (Models.ps1 -Preview, seconds) → independent review (Review.py pack/record)
    ▼
-validation ── open edges, inside-out shells, zero-area faces, material names, triangle budget
+validation ── open edges, inside-out shells, zero-area faces, material names, triangle budgets
    ▼
-quality gates (qc.py) ── z-fighting 0, holes 0, joints 0, texels ≥ 1.5 px, (rope audit)
+quality gates (qc.py) ── z-fighting 0, construction (nothing held by nothing, routes reach), holes 0,
+   ▼                     joints 0, texels ≥ 1.5 px, (rope audit)
    ▼                     any failure stops the build; numbers → Builds/QC/<name>.json
 texturing ── atlas pipeline (small models: baked colour/normal/ORM)
           └─ tiled pipeline (buildings: UVs in metres + shared tiling textures)
@@ -38,6 +42,9 @@ Unity (unity/) ── ModelImport fixes import settings, ModelImportTests compar
 | `tools/Models.ps1` | **Runs Blender in the background**. Use it for one model (`-Only house`), every model, or the checks (`-Checks`). It also draws the contact sheets. |
 | `tools/Verify.ps1` | **The one command to verify everything.** It rebuilds only models whose inputs changed, runs up to 3 builds in parallel, and prints one line per model and per step. |
 | `tools/Board.py` | **Puts many screenshots or crops on one labelled image**, so they can be reviewed in one look. |
+| `tools/Review.py` | **The independent plausibility review's pack and record.** `pack` writes one image plus a brief; `record` checks the reviewer's findings and stores them in `tools/blender/reviews/<model>.json`; `status` and `carry` maintain them. |
+| `.claude/skills/model-plausibility/` | **How to plan and review a model** (a Claude Code skill; readable by anyone): principles, a guidance file per category (`machines`, `suspended`, `buildings`, `organic`), `lessons.md` (past mistakes as general rules) and `review.md` (the reviewer's instructions and output format). |
+| `tools/blender/reviews/`, `tools/blender/approvals.json` | **Decision records:** what a reviewer found, and which geometry the user approved. Keyed by the model's geometry hash. |
 | `tools/Assets.ps1` | **Searches and fetches licence-checked free assets** through the separate `free-assets` tool. Optional. |
 | `tools/_common.ps1` | **Shared PowerShell helpers**: the project root, the log folder and Unity paths. |
 | `unity/` | **The Unity side**, kept for reference (it compiles only inside the game project). `ModelImport.cs` holds the import settings, `ModelLibrary.cs` and `SurfaceLibrary.cs` build the game materials, and `ModelImportTests.cs` checks each model against its spec. |
@@ -59,6 +66,12 @@ Build one model:
 
 ```bash
 powershell -ExecutionPolicy Bypass -File tools/Models.ps1 -Only wheel
+```
+
+Preview a model's structure in seconds: no baking, no export; it writes `Builds/Models/<name>_preview.png` with the plan card:
+
+```bash
+powershell -ExecutionPolicy Bypass -File tools/Models.ps1 -Only mower -Preview
 ```
 
 Run the pipeline checks:
@@ -123,6 +136,8 @@ import bmesh
 import opus_model as om
 
 model = om.Model("crate", __file__)
+model.plan("a wooden crate that holds apples", [("text", "the user's description")],
+           [("Box", "functional", "holds the apples", ["ground"], "fixed", "guess")], tier="simple")
 wood = model.surface("Planks", "#8A6A48", "matte", "rough pine boards (why this finish: what it really is)")
 
 bm = bmesh.new()
@@ -209,6 +224,7 @@ Every gate is a hard failure that prints numbers. Every defect that someone spot
 | Validation | `Model.validate` | Open edges, inside-out shells, zero-area faces, loose vertices, wrong material names, over the triangle budget |
 | Z-fighting | `om.coplanar_overlaps` | Overlapping faces in one plane facing the same way. The model must have 0. |
 | Holes | `qc.audit_holes` | A back face seen first from outside, as Unity draws it (back faces culled). Hundreds of close cameras (0.25–1.6 m) cast rays. A camera counts only where it can see the sky. An edge graze is confirmed with rays shifted 0.1 mm. The model must have 0. |
+| Construction | `qc.connectivity`, `qc.check_links` | A piece held by nothing: neither intersecting nor within 3 mm of another piece or the ground. Leaves and `part(free=True)` are exempt. A declared `route` (a cable, rope or pipe) that does not reach every point or ends in mid-air. A declared `attach` point where two pieces do not meet. |
 | Joints | `qc.joint_audit` | A member's end that crosses the face it meets at 3–60°, poking through or leaving a wedge. Lapped parallel boards and chamfers are not counted. |
 | Texels | `qc.texel_audit` | Atlas models only: a face over 1 cm² that gets less than 1.5 atlas px across its narrow side. Faces below the ground are ignored. |
 | Rope audit | `models/tire_swing.py` | Rope-to-rope distance under 1.9 R, a bend under 0.75 D, the loop not touching the tyre |
@@ -220,43 +236,44 @@ The gates have blind spots: a thin slot that looks through onto front faces, and
 
 These two scripts keep the edit, build and check loop cheap in time and in output to read:
 
-- `Verify.ps1` hashes each model's inputs: its generator, `opus_model.py`, `qc.py`, the outside assets, the source textures, and the model it depends on. Only changed models are rebuilt.
+- `Verify.ps1` hashes the content of each model's inputs: its generator, `opus_model.py`, `qc.py`, the outside assets, the source textures, and the model it depends on. Only changed models are rebuilt; touching a file without changing it rebuilds nothing.
   - Use `-Models a,b` or `-AllModels` to force builds.
   - `-Accept` records the current state as built.
   - A failure prints the gate's own message and exits with code 1.
+  - Every model line ends with its approval state. **A passing build is not an approval**: `approved` means the user approved exactly this geometry (`-Approve a,b`). A complex model shows `needs review` until a review of its current geometry exists, then `reviewed` or `review: N open`.
+  - `-Stats` prints builds, failures and review findings per model; every build is appended to `Builds/QC/history.jsonl`.
 - Inside a Unity project, `Verify.ps1` also runs the EditMode tests, the build and the screenshot scenarios: all of them after a code change, only the model scenarios after a model change. With no Unity project (as in this repository), it says so and stops after the checks.
 - `py -3 tools/Board.py out.png shot.png@x0,y0,x1,y1=label ...` puts many shots or crops on one sheet.
 
-## Modelling rules that came out of this work
+## Planning and reviewing a model (functional plausibility)
 
-These are the rules that grew out of reviewing every model up close against the reference video.
+A model can pass every gate and still make no sense: a rope tied wrong, a cable that pulls nothing, a detail that suggests a function the object cannot have. Three things cover this, and they are kept apart:
 
-- **The reference video is the only design source.**
-  - Measure sizes against something of known size in the frame.
-  - Sample colours from the same region in the video and in the game, choosing frames without coloured light.
-  - Parts the video never shows continue its design language and are marked as guesses in the generator's docstring.
-- **Mechanical logic:** every part has a job and a real attachment. Nothing floats or ends in mid-air: cables run in clips to the engine, and the starter rope runs to its guide.
-- **Real textures, not plastic.** Simple shapes still need painted texture: board lines, grain, grime where it belongs (only on concrete, brick and stone). Don't bake lighting into textures; dark patches in the video are often leaf shadows.
-- **Buildings: build them the way they are really built.**
-  - Deck boards rest on joists.
-  - Stair stringers are notched, and risers reach under the tread.
-  - Corner board tops follow the soffit slope, and the rake board covers the fascia's end.
-  - Shingle strips are two exposures long, with rows offset by a third of a strip.
-  - The sheathing runs under the overhang, with a plumb eave end.
-- **Joints sit.** Sloped members are made with `om.board`, their ends cut by the planes they meet.
-- **Z-fighting patterns:**
-  - hidden repeated ends are staggered 2.5–4 mm per row;
-  - flush faces are raised 4 mm;
-  - overlapping inner shells are carved where they are covered.
-- **Rope:**
-  - three-strand Z-lay with every strand modelled;
-  - loaded parts are straight and touch what they bind;
-  - bends are at least about one diameter;
-  - knots come from real rigging (round turn and half hitches);
-  - tails hang under gravity.
-- **Foliage** is leaf-shaped double-sided cards in clusters at the branch tips, with normals pointing out of the cluster and their own AO.
-- **Held tools** (first-person view models): proportions and framing are fitted numerically to the reference frames.
-- **Engine:** a mesh over 64k vertices is kept out of Unity static batching, because the joined house came out scrambled.
+| | What | Who decides |
+|---|---|---|
+| **Measured** | Plan check (every component attached to something, a load path to a support), construction gate, routes and attachments, rope audit | The build: pass or fail |
+| **Judged** | The independent review of complex models: findings with severity, confidence, evidence and a fix | Recorded; confident findings are fixed, doubtful ones are put to the user |
+| **Approved** | The user's approval of a model's exact geometry | The user (`Verify.ps1 -Approve`) |
+
+The workflow depends on the tier.
+- A **simple** model (few parts, nothing moving or hanging) gets a short plan, the gates and one look at the sheet.
+- A **complex** model (a mechanism, a cable or rope, anything suspended, a building, a hand-held tool) goes through these steps:
+  1. plan;
+  2. preview (`Models.ps1 -Only <m> -Preview`, seconds);
+  3. review (`Review.py pack`, then a separate reviewer with fresh context, then `Review.py record`);
+  4. detail;
+  5. full build;
+  6. Unity checks;
+  7. the user's approval.
+
+The review never runs inside a build. Any vision-capable model can be the reviewer: the pack is one image plus `brief.md`, and the output format is in `.claude/skills/model-plausibility/review.md`.
+
+The modelling rules that came out of this work live in that skill, so they exist in one place:
+- the general principles in `SKILL.md`;
+- the rules per kind of object in `categories/*.md`;
+- every past mistake with the principle it broke and what catches it now in `lessons.md`.
+
+Sources can be a video, an image, a 3D model or a text description. The plan names which, and the skill says how each is read.
 
 ## Not in this repository
 

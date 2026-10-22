@@ -11,9 +11,9 @@ as the casings (a frame, a middle rail and two flat panels on each leaf), bold b
 curved black handles in the middle; a side window with a thick white frame, 2x2 panes, a sill. The walls are clean (the brown stains at the base
 in the video are ivy, not part of the shed).
 
-Mechanical logic: every board laps over the one below (bottom edge 2.4 cm out, top edge 0.8 cm; the shadow line comes from this
-step); board ends hide under the corner boards and casings; each shingle row is two exposures long (two layers everywhere),
-its tabs offset by a third of a tab per row; the door leaves hang on the door casing with hinges, the handles are bolted to the leaves.
+Construction: every board laps over the one below (bottom edge 2.4 cm out, top edge 0.8 cm; the shadow line comes from this
+step); each shingle row is two exposures long (two layers everywhere), its tabs offset by a third of a tab per row. What holds
+what: the component plan (model.plan below).
 
 Tiling textures (21 October 2026, like the house): one mesh; every surface gets the tiling texture of its kind in game
 (painted wood grain from CC0 ambientCG PaintedWood009C, asphalt granules), UVs in metres along each board's grain, AO and a
@@ -50,6 +50,27 @@ OVERHANG_EAVE, OVERHANG_GABLE = 0.16, 0.14
 SLOPE = math.atan2(RISE, HW)
 
 model = om.Model("shed", __file__)
+model.plan(
+    "garden shed: a small timber building with a double door and a side window",
+    [("video", "0:16 (ref 05)")],
+    [   # name, role, job, attached to, moves, seen/guess/real
+        ("WallCore", "structural", "the frame and sheathing the boards are nailed to", ["ground"], "fixed", "guess"),
+        ("Siding", "structural", "lap boards, each over the one below; ends under the trim", ["WallCore"], "fixed", "seen"),
+        ("CornerBoards", "structural", "cover the siding ends at the corners", ["WallCore"], "fixed", "seen"),
+        ("Casings", "structural", "line the door and window openings, cover the board ends", ["WallCore"], "fixed", "seen"),
+        ("Sheathing", "structural", "the roof deck on the walls", ["WallCore"], "fixed", "guess"),
+        ("Shingles", "functional", "shed the rain: two layers everywhere, over the edges", ["Sheathing"], "fixed", "seen"),
+        ("RidgeCaps", "functional", "close the ridge", ["Shingles"], "fixed", "seen"),
+        ("RakeBoards", "structural", "trim the gable roof edges", ["WallCore", "Sheathing"], "fixed", "seen"),
+        ("Fascia", "structural", "trims the eaves", ["WallCore", "Sheathing"], "fixed", "seen"),
+        ("Hinges", "functional", "black wedge straps the leaves turn on", ["Casings"], "fixed", "seen"),
+        ("DoorLeaves", "functional", "framed double door: frame, middle rail, two panels", ["Hinges"], "hinge", "seen"),
+        ("Handles", "functional", "pull the leaves open, bolted to them", ["DoorLeaves"], "fixed", "seen"),
+        ("Sash", "structural", "window frame holding the 2x2 panes", ["Casings"], "fixed", "seen"),
+        ("Glass", "functional", "the panes", ["Sash"], "fixed", "seen"),
+        ("Sill", "functional", "sheds the water under the window", ["Casings"], "fixed", "seen"),
+    ],
+    supports=("ground",), tier="complex", category="buildings")
 SIDING = model.surface("Siding", "#849CA4", "matte", "Siding: painted wooden lap boards, blue-green-grey (#7B8489 in the video; "
                        "base shifted to green so the game's purple sky light does not turn it purple); matte, wood grain under the paint", material="rough_boards")
 TRIM = model.surface("Paint", "#DADCE0", "matte", "Corner, rake and fascia boards, casings, sill, door leaves: white painted wood, "

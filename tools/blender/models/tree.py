@@ -17,9 +17,7 @@ slopes down into the soil, and above the ground it fades into a shallow fold run
 box-projected so the fins need no unwrap) and a little tone; the colour is the video's flat warm brown (sRGB about 90/57/38
 on the lit side at 1:06). The dark patches on the trunk in the video are leaf shadows, so they are not painted.
 
-Mechanical logic: the roots come out of the buttresses at the base of the trunk and enter the soil; the branches fork from the
-trunk, thin branches come out of thick ones, the leaves are at the tips of the thin branches; the swing rope wraps around a side
-branch and is knotted, below it wraps around the tire's upper cross-section.
+Mechanical logic: the component plan (model.plan below).
 
 Unity axes: the origin is the middle of the base of the trunk (ground). The sizes match the earlier garden tree (the colliding
 trunk is in YardProps: r 0.35 m, 3.6 m; swing hook (2.1, 3.95, 0.9), tire centre y 0.78, r 0.36).
@@ -39,6 +37,17 @@ from opus_model import V  # noqa: E402
 
 rng = random.Random(5)
 model = om.Model("tree", __file__)
+model.plan(
+    "garden tree with a side branch that carries the tire swing",
+    [("video", "1:04-1:08 (ref 27); the crown is never seen")],
+    [   # name, role, job, attached to, moves, seen/guess/real
+        ("Roots", "structural", "buttress fins going into the soil", ["ground"], "fixed", "seen"),
+        ("Trunk", "structural", "carries the crown and the swing branch", ["Roots"], "fixed", "seen"),
+        ("SwingBranch", "structural", "side branch the swing's rope wraps round", ["Trunk"], "fixed", "seen"),
+        ("Branches", "structural", "fork from the trunk, thin ones out of thick ones", ["Trunk"], "fixed", "guess"),
+        ("Leaves", "functional", "leaf clusters at the tips of the thin branches", ["Branches"], "fixed", "guess"),
+    ],
+    supports=("ground",), tier="simple", category="organic")
 BARK_HEIGHT = model.external_texture("ambientcg:Bark003", "Bark003_1K-JPG_Displacement.jpg")
 BARK_PHOTO = model.external_texture("ambientcg:Bark003", "Bark003_1K-JPG_Color.jpg")
 BARK_BROWN = (78, 53, 33)        # sRGB; tuned against the 1:06 frame in game (the lavender sky light lifts and cools it)
@@ -255,6 +264,7 @@ everything = ["Body", "Leaves"]
 model.finish_textured(
     size=2048,
     budget=60000,
+    total_budget=80000,   # body + leaves
     ao_distance=0.6,
     islands="smart",
     ground=0.0,

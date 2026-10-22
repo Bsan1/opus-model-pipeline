@@ -5,7 +5,9 @@
 #
 # Generators: tools/blender/models/*.py; shared rules (1 unit = 1 m, axes, material names) in tools/blender/opus_model.py.
 # Outputs: Assets/Opus/Resources/Models/<name>.fbx, Assets/Opus/ModelSpecs/<name>.json, Builds/Models/<name>_contact.png.
-param([string]$Only, [switch]$Checks, [string]$BlenderPath)
+# -Preview: the structure only (validation, plan, construction gate, renders; no other gates, no baking, no FBX or spec):
+#           Builds/Models/<name>_preview.png in seconds instead of minutes, for looking at a model before detailing it.
+param([string]$Only, [switch]$Checks, [string]$BlenderPath, [switch]$Preview)
 . (Join-Path $PSScriptRoot '_common.ps1')
 Add-Type -AssemblyName System.Drawing
 
@@ -22,12 +24,14 @@ function Get-BlenderPath([string]$Override) {
 }
 
 # Combines the views rendered by Blender and the reference crops on a single labelled page.
-function New-ContactSheet([string]$Model) {
-    $dir = Join-Path $ProjectRoot "Builds\Models\$Model"
+function New-ContactSheet([string]$Model, [switch]$Preview) {
+    $folder = if ($Preview) { "${Model}_preview" } else { $Model }
+    $dir = Join-Path $ProjectRoot "Builds\Models\$folder"
     $viewsPath = Join-Path $dir 'views.json'
     if (-not (Test-Path -LiteralPath $viewsPath)) { return $null }
     $views = @((Get-Content -LiteralPath $viewsPath -Raw -Encoding UTF8 | ConvertFrom-Json).views)
-    $spec = Get-Content -LiteralPath (Join-Path $ProjectRoot "Assets\Opus\ModelSpecs\$Model.json") -Raw -Encoding UTF8 | ConvertFrom-Json
+    $specPath = if ($Preview) { Join-Path $dir 'spec.json' } else { Join-Path $ProjectRoot "Assets\Opus\ModelSpecs\$Model.json" }
+    $spec = Get-Content -LiteralPath $specPath -Raw -Encoding UTF8 | ConvertFrom-Json
 
     $tile = 640
     $cols = [Math]::Min(3, $views.Count)
@@ -37,7 +41,11 @@ function New-ContactSheet([string]$Model) {
     $surfaces = @($spec.surfaces)
     $cardRow = 30
     $card = if ($surfaces.Count -gt 0) { 56 + $surfaces.Count * $cardRow } else { 0 }
-    $sheet = New-Object System.Drawing.Bitmap ($cols * $tile), ($rows * $tile + $header + $card)
+    # Plan card: what every component does, what holds it, whether it moves, seen or guessed (Model.plan)
+    $components = if ($spec.plan) { @($spec.plan.components) } else { @() }
+    $planRow = 26
+    $planCard = if ($components.Count -gt 0) { 96 + $components.Count * $planRow } else { 0 }
+    $sheet = New-Object System.Drawing.Bitmap ($cols * $tile), ($rows * $tile + $header + $card + $planCard)
     $g = [System.Drawing.Graphics]::FromImage($sheet)
     $g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
     $g.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
@@ -61,7 +69,7 @@ function New-ContactSheet([string]$Model) {
             $g.DrawImage($image, (New-Object System.Drawing.Rectangle $x, $y, $tile, $tile))
         }
         elseif (-not (Test-Path -LiteralPath (Join-Path $ProjectRoot $view.path))) {
-            # Reference frames are not in this repository (crops of a copyrighted video): an empty tile names the file
+            # Reference frame missing (the public pipeline repository leaves out these crops of a copyrighted video)
             $g.FillRectangle((New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(60, 58, 54))), $x, $y, $tile, $tile)
             $g.DrawString("not here: $($view.path)", $labelFont, $paper, $x + 16, $y + $tile / 2)
         }
@@ -104,7 +112,21 @@ function New-ContactSheet([string]$Model) {
             $y += $cardRow
         }
     }
-    $out = Join-Path $ProjectRoot "Builds\Models\${Model}_contact.png"
+    if ($planCard -gt 0) {
+        $y = $rows * $tile + $header + $card + 14
+        $g.DrawString("Plan: $($spec.plan.purpose)", $titleFont, $ink, 12, $y)
+        $sources = ($spec.plan.sources | ForEach-Object { "$($_.kind): $($_.where)" }) -join '; '
+        $g.DrawString("Sources: $sources   Held by: $($spec.plan.supports -join ', ')   Tier: $($spec.plan.tier)", $labelFont, $ink, 14, $y + 36)
+        $y += 70
+        $boldFont = New-Object System.Drawing.Font 'Segoe UI', 12, ([System.Drawing.FontStyle]::Bold)
+        foreach ($c in $components) {
+            $g.DrawString($c.name, $boldFont, $ink, 14, $y)
+            $g.DrawString(('{0}, {1}, {2}' -f $c.role, $c.moves, $c.source), $labelFont, $ink, 230, $y)
+            $g.DrawString(('{0}  -> {1}' -f $c.job, ($c.attaches -join ', ')), $labelFont, $ink, 470, $y)
+            $y += $planRow
+        }
+    }
+    $out = Join-Path $ProjectRoot "Builds\Models\${folder}$(if ($Preview) { '.png' } else { '_contact.png' })"
     $sheet.Save($out, [System.Drawing.Imaging.ImageFormat]::Png)
     $g.Dispose()
     $sheet.Dispose()
@@ -145,12 +167,13 @@ if ($Only) {
     if ($generators.Count -eq 0) { throw "No generator: tools/blender/models/$Only.py" }
 }
 
+if ($Preview) { $env:OPUS_PREVIEW = '1' }   # read by opus_model.PREVIEW in the Blender process
 foreach ($generator in $generators) {
     $name = $generator.BaseName
-    Write-Host "Blender: $name ..."
+    Write-Host "Blender: $name$(if ($Preview) { ' (preview)' }) ..."
     $watch = [Diagnostics.Stopwatch]::StartNew()
-    Invoke-BlenderScript $generator.FullName $name
-    $sheet = New-ContactSheet $name
+    Invoke-BlenderScript $generator.FullName $(if ($Preview) { "$name-preview" } else { $name })
+    $sheet = New-ContactSheet $name -Preview:$Preview
     Write-Host ('Done: {0} ({1:N0} s)' -f $name, $watch.Elapsed.TotalSeconds)
     if ($sheet) { Write-Host "  Contact sheet: $sheet" }
 }

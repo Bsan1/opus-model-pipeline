@@ -37,6 +37,16 @@ LUG_BLOCK = 2          # slices a lug covers
 POCKETS = 8            # rim pockets (spokes between them)
 
 model = om.Model("wheel", __file__)
+model.plan(
+    "push mower wheel: turns on its axle pin and rolls the mower",
+    [("video", "only the back corners of the housing show the wheels")],
+    [   # name, role, job, attached to, moves, seen/guess/real
+        ("Hub", "structural", "turns on the axle pin", ["axle"], "spin", "guess"),
+        ("Rim", "structural", "carries the tire; its pockets leave spokes", ["Hub"], "spin", "guess"),
+        ("Tire", "functional", "grips the ground, small tread blocks", ["Rim"], "spin", "seen"),
+        ("HubCap", "decorative", "covers the hub, dark grey", ["Hub"], "spin", "guess"),
+    ],
+    supports=("axle",), tier="simple", category="machines")
 RUBBER_HEIGHT = os.path.join(om.SOURCE_TEXTURE_DIR, "Rubber001", "Rubber001_1K-PNG_Displacement.png")
 
 
@@ -206,6 +216,7 @@ both = ["RearWheel", "FrontWheel"]
 model.finish_textured(
     size=2048,
     budget=24000,
+    total_budget=40000,   # both wheels (each drawn twice in game)
     moving=tuple(both),
     islands="smart",
     ao_distance=0.03,
