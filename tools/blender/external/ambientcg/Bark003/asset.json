@@ -1,0 +1,82 @@
+{
+  "source": "ambientcg",
+  "id": "Bark003",
+  "name": "Bark 003",
+  "kind": "texture",
+  "licence": "CC0",
+  "page_url": "https://ambientcg.com/view?id=Bark003",
+  "authors": [
+    "ambientCG (Lennart Demes)"
+  ],
+  "licence_note": "CC0 1.0",
+  "thumbnail": "https://f003.backblazeb2.com/file/ambientCG-Web/media/surface-preview/Bark003/Bark003_SQ_Color.jpg",
+  "triangles": 0,
+  "tags": [
+    "3",
+    "bark",
+    "dark",
+    "smooth",
+    "tree",
+    "wood"
+  ],
+  "extra": {
+    "downloads": [
+      "1K-JPG",
+      "2K-JPG",
+      "4K-JPG",
+      "8K-JPG",
+      "1K-PNG",
+      "2K-PNG",
+      "4K-PNG",
+      "8K-PNG"
+    ]
+  },
+  "ref": "ambientcg:Bark003",
+  "folder": "ambientcg/Bark003",
+  "fetched": "2026-10-21T01:12:06",
+  "tool": "free-assets 0.1.0",
+  "options": {
+    "resolution": "1k",
+    "format": null
+  },
+  "files": [
+    {
+      "path": "Bark003.png",
+      "size": 359148,
+      "sha256": "ed3d114804800ca633d8afac0785154221226da9ef24b6c9a4dcc797c500268c"
+    },
+    {
+      "path": "Bark003_1K-JPG_AmbientOcclusion.jpg",
+      "size": 554470,
+      "sha256": "60351dd5bce5cc8d6be6288e207bd9be322c0ae6a834ff38e12914652cff132e"
+    },
+    {
+      "path": "Bark003_1K-JPG_Color.jpg",
+      "size": 1261332,
+      "sha256": "9b0a65088b63ce2d5d2e5b7c33275dbc928e6e6674270f07ccc635d9eb742e73"
+    },
+    {
+      "path": "Bark003_1K-JPG_Displacement.jpg",
+      "size": 429168,
+      "sha256": "388bd751e4bf7019468f9da77985e3b0bf720b504fe92415095d2f7dc6760fc6"
+    },
+    {
+      "path": "Bark003_1K-JPG_NormalDX.jpg",
+      "size": 2570614,
+      "sha256": "0f8f0cee1d93408e4c14af6bdc4419cc7428a7efd8e0e14648b9e98fec0578c4"
+    },
+    {
+      "path": "Bark003_1K-JPG_NormalGL.jpg",
+      "size": 2568702,
+      "sha256": "22dbd485bc158140decf00e53a73390af74566990a29ad866ce18a396dc0345f"
+    },
+    {
+      "path": "Bark003_1K-JPG_Roughness.jpg",
+      "size": 656514,
+      "sha256": "57f63ad973b506ed16a84eaa0e1c386aafb7f79100d748a59aad7d27074ef284"
+    }
+  ],
+  "attribution_required": false,
+  "licence_summary": "public domain, no conditions",
+  "approved_by": "user: ambientCG CC0 approved 2026-10-20; tree trunk bark"
+}

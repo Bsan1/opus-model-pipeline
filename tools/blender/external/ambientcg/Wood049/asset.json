@@ -1,0 +1,85 @@
+{
+  "source": "ambientcg",
+  "id": "Wood049",
+  "name": "Wood 049",
+  "kind": "texture",
+  "licence": "CC0",
+  "page_url": "https://ambientcg.com/view?id=Wood049",
+  "authors": [
+    "ambientCG (Lennart Demes)"
+  ],
+  "licence_note": "CC0 1.0",
+  "thumbnail": "https://f003.backblazeb2.com/file/ambientCG-Web/media/surface-preview/Wood049/Wood049_SQ_Color.jpg",
+  "triangles": 0,
+  "tags": [
+    "049",
+    "49",
+    "brown",
+    "furniture",
+    "grain",
+    "horizontal",
+    "interior",
+    "modern",
+    "natural",
+    "oak",
+    "plain",
+    "smooth",
+    "wood",
+    "wood049"
+  ],
+  "extra": {
+    "downloads": [
+      "1K-JPG",
+      "2K-JPG",
+      "4K-JPG",
+      "8K-JPG",
+      "1K-PNG",
+      "2K-PNG",
+      "4K-PNG",
+      "8K-PNG"
+    ]
+  },
+  "ref": "ambientcg:Wood049",
+  "folder": "ambientcg/Wood049",
+  "fetched": "2026-10-21T17:08:06",
+  "tool": "free-assets 0.1.0",
+  "options": {
+    "resolution": "1k",
+    "format": null
+  },
+  "files": [
+    {
+      "path": "Wood049.png",
+      "size": 294018,
+      "sha256": "3ce20cc60953baa259b1de1d8ef893a6cbc0ff3ec1822f1ed5849ef21c855ae7"
+    },
+    {
+      "path": "Wood049_1K-JPG_Color.jpg",
+      "size": 954756,
+      "sha256": "451ee4dd719628289b4969f75dc583b5f77f8471d5d885ba5015fd90e7e5ce61"
+    },
+    {
+      "path": "Wood049_1K-JPG_Displacement.jpg",
+      "size": 599648,
+      "sha256": "3fcb2a67d00a0fff5171d9a42e720765287a80a76a9e80eaf07405ca6ea1c1a2"
+    },
+    {
+      "path": "Wood049_1K-JPG_NormalDX.jpg",
+      "size": 1560334,
+      "sha256": "b5afe16b3ca4e0aed0d2c4332738541fccfdffedd07d4e14fba17281b23395fd"
+    },
+    {
+      "path": "Wood049_1K-JPG_NormalGL.jpg",
+      "size": 1559595,
+      "sha256": "e9aaec13f9c6199e7ec440433005a8c52a88332f26a3887fc057179089fb747a"
+    },
+    {
+      "path": "Wood049_1K-JPG_Roughness.jpg",
+      "size": 708949,
+      "sha256": "7683f29e71c24b987e4a7dcc74d5a9ed5ab4cac2e145d507799ba9c9c2c4ef54"
+    }
+  ],
+  "attribution_required": false,
+  "licence_summary": "public domain, no conditions",
+  "approved_by": "user, 21 Oct 2026 (two CC0 wood textures)"
+}

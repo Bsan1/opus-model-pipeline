@@ -1,0 +1,7 @@
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.exr binary
+*.glb binary
+*.bin binary
+*.fbx binary

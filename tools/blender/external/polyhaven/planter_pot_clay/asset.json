@@ -1,0 +1,80 @@
+{
+  "source": "polyhaven",
+  "id": "planter_pot_clay",
+  "name": "Planter Pot Clay",
+  "kind": "model",
+  "licence": "CC0",
+  "page_url": "https://polyhaven.com/a/planter_pot_clay",
+  "authors": [
+    "Amal Kumar"
+  ],
+  "licence_note": "CC0 1.0",
+  "thumbnail": "https://cdn.polyhaven.com/asset_img/thumbs/planter_pot_clay.png?width=512&height=512",
+  "triangles": 3080,
+  "tags": [
+    "outdoor",
+    "mossy",
+    "dirty",
+    "used",
+    "worn",
+    "shed",
+    "garden",
+    "gardening",
+    "farmhouse",
+    "greenhouse",
+    "landscaping",
+    "containers",
+    "vases",
+    "collection: the_shed"
+  ],
+  "extra": {
+    "dimensions": [
+      265.9967243671417,
+      263.4630501270294,
+      221.87034250237048
+    ],
+    "max_resolution": [
+      4096,
+      4096
+    ],
+    "texel_density": 6950.3651147291475
+  },
+  "ref": "polyhaven:planter_pot_clay",
+  "folder": "polyhaven/planter_pot_clay",
+  "fetched": "2026-10-21T00:27:50",
+  "tool": "free-assets 0.1.0",
+  "options": {
+    "resolution": "1k",
+    "format": null
+  },
+  "files": [
+    {
+      "path": "planter_pot_clay.bin",
+      "size": 78096,
+      "sha256": "effd0a038a75a054e55e2f5f71a84c57c1c6efc4e453ae3e62d4ce5167a2913c"
+    },
+    {
+      "path": "planter_pot_clay_1k.gltf",
+      "size": 2813,
+      "sha256": "f2989068dcff9737c9f3d49d435b70e36d553822ac87134daac055ae9706af1e"
+    },
+    {
+      "path": "textures/planter_pot_clay_arm_1k.jpg",
+      "size": 613484,
+      "sha256": "68e9e509db4e330b48924c606d4a9a99b54e105c1fe1690ff2811a05d95a0def"
+    },
+    {
+      "path": "textures/planter_pot_clay_diff_1k.jpg",
+      "size": 596319,
+      "sha256": "4f2962fd238401e49fd400596fdccd1ee9e2cca9ed21e44bb924dca3076f524c"
+    },
+    {
+      "path": "textures/planter_pot_clay_nor_gl_1k.jpg",
+      "size": 506446,
+      "sha256": "25a564e55b247a94863b513853b1aeaad5c894dd78e92e1fd89e794b83b483c4"
+    }
+  ],
+  "attribution_required": false,
+  "licence_summary": "public domain, no conditions",
+  "approved_by": "user: Poly Haven/ambientCG CC0 approved 2026-10-20; pipeline check asset"
+}

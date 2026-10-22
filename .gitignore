@@ -1,0 +1,9 @@
+# Build outputs (the generators write them; rebuild with tools/Models.ps1 or tools/Verify.ps1)
+/Assets/
+/Builds/
+/Logs/
+/tools/blender/source_textures/generated/
+__pycache__/
+*.pyc
+# Reference frames from the video are not part of this repository (copyrighted)
+/docs/reference/

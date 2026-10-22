@@ -1,0 +1,83 @@
+{
+  "source": "ambientcg",
+  "id": "PaintedWood009C",
+  "name": "Painted Wood 009 C",
+  "kind": "texture",
+  "licence": "CC0",
+  "page_url": "https://ambientcg.com/view?id=PaintedWood009C",
+  "authors": [
+    "ambientCG (Lennart Demes)"
+  ],
+  "licence_note": "CC0 1.0",
+  "thumbnail": "https://f003.backblazeb2.com/file/ambientCG-Web/media/surface-preview/PaintedWood009C/PaintedWood009C_SQ_Color.jpg",
+  "triangles": 0,
+  "tags": [
+    "9",
+    "beige",
+    "clean",
+    "light",
+    "old",
+    "painted",
+    "wood"
+  ],
+  "extra": {
+    "downloads": [
+      "1K-JPG",
+      "2K-JPG",
+      "4K-JPG",
+      "8K-JPG",
+      "1K-PNG",
+      "2K-PNG",
+      "4K-PNG",
+      "8K-PNG"
+    ]
+  },
+  "ref": "ambientcg:PaintedWood009C",
+  "folder": "ambientcg/PaintedWood009C",
+  "fetched": "2026-10-21T04:26:48",
+  "tool": "free-assets 0.1.0",
+  "options": {
+    "resolution": "1k",
+    "format": null
+  },
+  "files": [
+    {
+      "path": "PaintedWood009C.png",
+      "size": 313337,
+      "sha256": "99a4a564941e14f00d2844e1c73cb1b97ca2f0486b5291b8cda6652088de2358"
+    },
+    {
+      "path": "PaintedWood009C_1K-JPG_AmbientOcclusion.jpg",
+      "size": 589503,
+      "sha256": "d6fd261581a7873047864af8fee6c1755e8dfe55f570bb6dfe06ddd18e28a730"
+    },
+    {
+      "path": "PaintedWood009C_1K-JPG_Color.jpg",
+      "size": 1253297,
+      "sha256": "2e7cfdfce8691369c5e2997433bc60c01040283c92584202daaf7619df360ed4"
+    },
+    {
+      "path": "PaintedWood009C_1K-JPG_Displacement.jpg",
+      "size": 351621,
+      "sha256": "cfc0380db0c23b8065d2a29ae45010c790b5108812641d52aa146b4ee804fa37"
+    },
+    {
+      "path": "PaintedWood009C_1K-JPG_NormalDX.jpg",
+      "size": 1745595,
+      "sha256": "b8af0cae6483d3b16f0b03d1eb2226ea9fc86e2ac39dffcf2a0673d229829522"
+    },
+    {
+      "path": "PaintedWood009C_1K-JPG_NormalGL.jpg",
+      "size": 1745558,
+      "sha256": "6df31a8b25275e27630c2596844e118bd3d199f8c9aa7f1eb054be0d6d062b64"
+    },
+    {
+      "path": "PaintedWood009C_1K-JPG_Roughness.jpg",
+      "size": 534305,
+      "sha256": "51382221fec534381abf41a437e70574b663d842f261c2c3613c7dcaa00c0a57"
+    }
+  ],
+  "attribution_required": false,
+  "licence_summary": "public domain, no conditions",
+  "approved_by": "user: ambientCG CC0 approved 2026-10-20; shed and house painted wood"
+}

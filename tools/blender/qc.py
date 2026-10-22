@@ -1,0 +1,322 @@
+"""
+Quality gates of the model pipeline (21 October 2026, after the user found holes and black lines the old checks missed).
+
+- audit_holes: looks at the model from hundreds of close cameras the way Unity draws it (back faces culled). A ray from outside
+  whose first hit is a BACK face means a face is missing there: in game you would see through. Must be 0.
+- texel_audit: for an atlas model, how many atlas pixels each face gets across its narrow side. A face of noticeable size under
+  `min_px` cannot carry its colour: it bleeds the neighbouring pixels (the black shingle butts and downspout facets).
+- fill_empty: fills the atlas pixels no face uses with the colour of the nearest used ones (push-pull), so mipmaps never mix in
+  black.
+
+Every gate reports in numbers (Builds/QC/<model>.json); a failure raises and stops the build.
+"""
+import json
+import math
+import os
+import random
+
+import numpy as np
+from mathutils import Vector
+from mathutils.bvhtree import BVHTree
+
+
+def _tree(objects):
+    verts, polys = [], []
+    for obj in objects:
+        mw = obj.matrix_world
+        base = len(verts)
+        verts += [mw @ v.co for v in obj.data.vertices]
+        polys += [[base + i for i in p.vertices] for p in obj.data.polygons]
+    return BVHTree.FromPolygons(verts, polys, epsilon=0.0), verts, polys
+
+
+def _faces(objects):
+    """(area, centre, normal) of every polygon in world space."""
+    out = []
+    for obj in objects:
+        mw = obj.matrix_world
+        rot = mw.to_3x3()
+        for p in obj.data.polygons:
+            if p.area < 1e-8:
+                continue
+            out.append((p.area, mw @ p.center, (rot @ p.normal).normalized(), obj, p))
+    return out
+
+
+AXES = [Vector(v) for v in ((1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0), (0, 0, 1), (0, 0, -1))]
+# 26 directions (cube faces, edges, corners) for the "can this camera see out?" test
+ESCAPE = [Vector((x, y, z)).normalized() for x in (-1, 0, 1) for y in (-1, 0, 1) for z in (-1, 0, 1) if (x, y, z) != (0, 0, 0)]
+
+
+def audit_holes(objects, ground=None, seed=1, per_m2=1.0, min_cameras=300, max_cameras=4000, rays=1500,
+                near=0.25, far=1.6, min_dot=0.05, details=None):
+    """
+    Close cameras over the whole surface (area-weighted: a camera 0.25-1.6 m in front of a random point, looking at it), each
+    casting `rays` random rays in a 40 degree cone. A first hit on a back face = a hole. Cameras below `ground` (world z) or
+    shut in (no ray of 26 directions gets out to the sky; the ground is opaque) are skipped: a camera can only be where the
+    open air is. (The first version judged "inside" by the facing of the first hit, which pressed faces such as a board's
+    back on the wall core fooled.) Hits more grazing than `min_dot` (the ray within
+    3 degrees of the face plane) are not counted: such a face shows 5 % of its area at most, far below a pixel for the lug and
+    rope facets where curved extrusions tilt a side wall by a degree. A back hit is confirmed by four rays shifted 0.1 mm
+    sideways: a ray through a shared edge can return the face behind the edge in float precision (one such hit on the
+    house's siding board edge); a real gap wider than 0.2 mm (under a pixel at 0.25 m) passes the shifted rays too.
+    Returns {"cameras", "rays", "backface_hits", "edge_grazes", "regions": [(unity xyz, hits), ...]}.
+    """
+    rng = random.Random(seed)
+    tree, _, _ = _tree(objects)
+    faces = _faces(objects)
+    total = sum(f[0] for f in faces)
+    count = int(min(max(total * per_m2, min_cameras), max_cameras))
+    cumulative, acc = [], 0.0
+    for f in faces:
+        acc += f[0]
+        cumulative.append(acc)
+
+    def pick():
+        r = rng.random() * acc
+        lo, hi = 0, len(cumulative) - 1
+        while lo < hi:
+            mid = (lo + hi) // 2
+            if cumulative[mid] < r:
+                lo = mid + 1
+            else:
+                hi = mid
+        return faces[lo]
+
+    def inside(point):
+        for d in ESCAPE:
+            if ground is not None and d.z < 0.0:
+                continue            # towards the ground: never out
+            if tree.ray_cast(point, d, 1000.0)[0] is None:
+                return False
+        return True
+
+    def confirmed(eye, d):
+        s = d.orthogonal().normalized()
+        u = d.cross(s)
+        backs = 0
+        for off in (s, -s, u, -u):
+            h = tree.ray_cast(eye + off * 1e-4, d, 200.0)
+            if h[0] is not None and h[1].dot(d) > 0.0:
+                backs += 1
+        return backs >= 3
+
+    hits, cast, cameras, grazes = {}, 0, 0, 0
+    tries = 0
+    while cameras < count and tries < count * 6:
+        tries += 1
+        _, centre, normal, _, _ = pick()
+        distance = near * (far / near) ** rng.random()
+        jitter = Vector((rng.gauss(0, 1), rng.gauss(0, 1), rng.gauss(0, 1))) * 0.25 * distance
+        eye = centre + normal * distance + jitter
+        if ground is not None and eye.z < ground + 0.03:
+            continue
+        if inside(eye):
+            continue
+        look = (centre - eye).normalized()
+        side = look.orthogonal().normalized()
+        up = look.cross(side)
+        cameras += 1
+        for _ in range(rays):
+            a = rng.random() * 2.0 * math.pi
+            r = math.tan(math.radians(40.0)) * math.sqrt(rng.random())
+            d = (look + side * (math.cos(a) * r) + up * (math.sin(a) * r)).normalized()
+            hit = tree.ray_cast(eye, d, 200.0)
+            cast += 1
+            if hit[0] is not None and hit[1].dot(d) > min_dot:
+                if not confirmed(eye, d):
+                    grazes += 1
+                    continue
+                p = hit[0]
+                key = (round(p.x, 2), round(p.y, 2), round(p.z, 2))
+                hits[key] = hits.get(key, 0) + 1
+                if details is not None:
+                    details.append((p.copy(), hit[2], eye.copy(), hit[1].dot(d)))
+    regions = {}
+    for (x, y, z), n in hits.items():
+        k = (round(x / 0.25) * 0.25, round(y / 0.25) * 0.25, round(z / 0.25) * 0.25)
+        regions[k] = regions.get(k, 0) + n
+    top = sorted(regions.items(), key=lambda kv: -kv[1])[:12]
+    return {"cameras": cameras, "rays": cast, "backface_hits": sum(hits.values()), "hole_points": len(hits), "edge_grazes": grazes,
+            "regions": [([round(-x, 2), round(z, 2), round(-y, 2)], n) for (x, y, z), n in top]}
+
+
+def texel_audit(objects, size, uv_name, min_px=1.5, min_area=1e-4, ground=None):
+    """
+    Narrow-side width of every face in atlas pixels (area / longest edge, scaled by the face's own texel density).
+    Faces larger than `min_area` m2 under `min_px` fail. Faces wholly below `ground` (world z; the tree trunk's buried end
+    cap) are never seen and are skipped. Returns the share of area per width band and the worst faces.
+    """
+    bands = {"<1": 0.0, "1-2": 0.0, "2-4": 0.0, ">=4": 0.0}
+    total = 0.0
+    bad = []
+    for obj in objects:
+        me = obj.data
+        layer = me.uv_layers.get(uv_name)
+        if layer is None:
+            continue
+        uv = layer.data
+        mw = obj.matrix_world
+        for p in me.polygons:
+            if p.area < 1e-9:
+                continue
+            if ground is not None and max((mw @ me.vertices[v].co).z for v in p.vertices) < ground:
+                continue
+            pts = [uv[i].uv for i in p.loop_indices]
+            uv_area = 0.5 * abs(sum(pts[i].x * pts[(i + 1) % len(pts)].y - pts[(i + 1) % len(pts)].x * pts[i].y
+                                    for i in range(len(pts))))
+            density = size * math.sqrt(uv_area / p.area)
+            co = [me.vertices[v].co for v in p.vertices]
+            longest = max((co[i] - co[(i + 1) % len(co)]).length for i in range(len(co)))
+            px = p.area / max(longest, 1e-9) * density
+            band = "<1" if px < 1 else "1-2" if px < 2 else "2-4" if px < 4 else ">=4"
+            bands[band] += p.area
+            total += p.area
+            if px < min_px and p.area > min_area:
+                c = mw @ p.center
+                bad.append((round(px, 2), round(p.area * 1e4, 1), [round(-c.x, 3), round(c.z, 3), round(-c.y, 3)],
+                            obj.name))
+    bad.sort(key=lambda b: -b[1])
+    return {"bands_percent": {k: round(100 * v / max(total, 1e-9), 1) for k, v in bands.items()},
+            "thin_faces": len(bad), "worst": bad[:10]}
+
+
+def fill_empty(pixels, mask):
+    """
+    Push-pull fill: pixels (H x W x C float32) where mask (H x W bool) is False take the colour of the nearest used pixels,
+    averaged over a mip pyramid. Used pixels stay unchanged.
+    """
+    levels = []
+    c = pixels * mask[..., None]
+    w = mask.astype(np.float32)
+    while min(c.shape[0], c.shape[1]) > 1:
+        levels.append((c, w))
+        h, wd = c.shape[0] // 2, c.shape[1] // 2
+        c = c[:h * 2, :wd * 2].reshape(h, 2, wd, 2, -1).sum(axis=(1, 3))
+        w = w[:h * 2, :wd * 2].reshape(h, 2, wd, 2).sum(axis=(1, 3))
+    colour = c / np.maximum(w, 1e-8)[..., None]
+    for c_l, w_l in reversed(levels):
+        up = np.repeat(np.repeat(colour, 2, axis=0), 2, axis=1)
+        if up.shape[0] < c_l.shape[0] or up.shape[1] < c_l.shape[1]:
+            up = np.pad(up, ((0, c_l.shape[0] - up.shape[0]), (0, c_l.shape[1] - up.shape[1]), (0, 0)), mode="edge")
+        up = up[:c_l.shape[0], :c_l.shape[1]]
+        own = c_l / np.maximum(w_l, 1e-8)[..., None]
+        colour = np.where((w_l > 0)[..., None], own, up)
+    return np.where(mask[..., None], pixels, colour).astype(np.float32)
+
+
+def write_report(root, model, report):
+    folder = os.path.join(root, "Builds", "QC")
+    os.makedirs(folder, exist_ok=True)
+    with open(os.path.join(folder, model + ".json"), "w", encoding="utf-8") as f:
+        json.dump(report, f, indent=1)
+        f.write("\n")
+
+
+def _shell_groups(bm):
+    """Connected face sets of a bmesh."""
+    seen, groups = set(), []
+    for start in bm.faces:
+        if start.index in seen:
+            continue
+        stack, group = [start], []
+        seen.add(start.index)
+        while stack:
+            f = stack.pop()
+            group.append(f)
+            for e in f.edges:
+                for g in e.link_faces:
+                    if g.index not in seen:
+                        seen.add(g.index)
+                        stack.append(g)
+        groups.append(group)
+    return groups
+
+
+def joint_audit(objects, tol=0.003, near=0.03, min_angle=3.0, max_angle=60.0, elongation=3.0, min_area=1e-4, min_width=0.01,
+                reach=0.06, details=None):
+    """
+    Member ends that do not sit on what they meet (21 October 2026: the porch's rake boards were cut square to their 15 degree
+    slope, so their ends crossed the vertical fascia, 9 mm proud of it at the top and 4 cm behind it at the bottom). For every
+    long shell (a board, a rail, a pipe: its longest extent at least `elongation` x the next), its end faces (normal along the
+    long axis, over `min_area`) are checked against the faces of other shells within `near` of the end's centre (not of
+    parallel members: lapped boards run behind each other by design): an end that
+    crosses such a face at an angle (its corners more than `tol` on both sides of it but none further than `reach`, the two
+    faces `min_angle`..`max_angle` apart) is cut at the wrong angle: part of it pokes through, part leaves a wedge. Faces
+    narrower than `min_width` (edge chamfers) are not counted as something an end meets.
+    Returns {"members", "ends", "bad", "worst": [(part, Unity xyz, angle, mm in front, mm behind), ...]}.
+    """
+    import bmesh
+    import numpy as np
+    verts, polys, shell_of, normals, widths = [], [], [], [], []
+    axes = []                                    # per shell: its long axis, or None for a shell that is not a member
+    ends = []                                    # (shell, centre, normal, corners, part)
+    members = 0
+    shell = 0
+    for obj in objects:
+        mw = obj.matrix_world
+        rot = mw.to_3x3()
+        bm = bmesh.new()
+        bm.from_mesh(obj.data)
+        bm.normal_update()
+        for group in _shell_groups(bm):
+            pts = np.array([tuple(mw @ v.co) for v in {v for f in group for v in f.verts}])
+            for f in group:
+                corners = [mw @ v.co for v in f.verts]
+                base = len(verts)
+                verts += corners
+                polys.append(list(range(base, base + len(corners))))
+                shell_of.append(shell)
+                normals.append((rot @ f.normal).normalized())
+                longest = max((corners[i] - corners[i - 1]).length for i in range(len(corners)))
+                widths.append(f.calc_area() / max(longest, 1e-9))
+            axes.append(None)
+            if len(pts) >= 8:
+                centred = pts - pts.mean(axis=0)
+                _, vecs = np.linalg.eigh(centred.T @ centred)
+                spans = [float(np.ptp(centred @ vecs[:, k])) for k in range(3)]
+                if spans[2] >= elongation * max(spans[1], 1e-6):
+                    members += 1
+                    axis = Vector(tuple(vecs[:, 2]))
+                    axes[-1] = axis
+                    for f in group:
+                        n = (rot @ f.normal).normalized()
+                        if abs(n.dot(axis)) > 0.7 and f.calc_area() > min_area:
+                            corners = [mw @ v.co for v in f.verts]
+                            longest = max((corners[i] - corners[i - 1]).length for i in range(len(corners)))
+                            if f.calc_area() / max(longest, 1e-9) < min_width * 0.5:
+                                continue        # an edge chamfer at the end, not the end itself
+                            centre = sum(corners, Vector()) / len(corners)
+                            ends.append((shell, centre, n, corners, obj.name, spans[2], axis))
+            shell += 1
+        bm.free()
+    tree = BVHTree.FromPolygons(verts, polys, epsilon=0.0)
+    bad = []
+    for own, centre, n_end, corners, part, length, axis in ends:
+        seen = set()
+        for _, _, index, _ in tree.find_nearest_range(centre, near):
+            if index is None or index in seen or shell_of[index] == own or widths[index] < min_width:
+                continue
+            other_axis = axes[shell_of[index]]
+            if other_axis is not None and abs(axis.dot(other_axis)) > math.cos(math.radians(30.0)):
+                continue        # a parallel member (lapped boards): an end running behind the next board is how laps are built
+            seen.add(index)
+            n_other = normals[index]
+            angle = math.degrees(math.acos(min(1.0, abs(n_end.dot(n_other)))))
+            if not (min_angle < angle < max_angle):
+                continue
+            origin = verts[polys[index][0]]
+            d = [(c - origin).dot(n_other) for c in corners]
+            if max(d) > tol and min(d) < -tol and max(d) < reach and -min(d) < reach:
+                bad.append((part, [round(-centre.x, 3), round(centre.z, 3), round(-centre.y, 3)], round(angle, 1),
+                            round(max(d) * 1000, 1), round(-min(d) * 1000, 1)))
+                if details is not None:
+                    other = sum((verts[i] for i in polys[index]), Vector()) / len(polys[index])
+                    details.append({"end_normal": [round(-n_end.x, 3), round(n_end.z, 3), round(-n_end.y, 3)],
+                                    "member_length": round(length, 3), "met_normal": [round(-n_other.x, 3), round(n_other.z, 3),
+                                                                                      round(-n_other.y, 3)],
+                                    "met_centre": [round(-other.x, 3), round(other.z, 3), round(-other.y, 3)],
+                                    "met_width": round(widths[index], 3)})
+                break
+    bad.sort(key=lambda b: -min(b[3], b[4]))
+    return {"members": members, "ends": len(ends), "bad": len(bad), "worst": bad[:40]}

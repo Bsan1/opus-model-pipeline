@@ -1,0 +1,416 @@
+{
+  "about": "Assets fetched with free-assets. Each folder has asset.json with source, licence and authors.",
+  "assets": [
+    {
+      "source": "ambientcg",
+      "id": "Bark003",
+      "name": "Bark 003",
+      "kind": "texture",
+      "licence": "CC0",
+      "page_url": "https://ambientcg.com/view?id=Bark003",
+      "authors": [
+        "ambientCG (Lennart Demes)"
+      ],
+      "licence_note": "CC0 1.0",
+      "thumbnail": "https://f003.backblazeb2.com/file/ambientCG-Web/media/surface-preview/Bark003/Bark003_SQ_Color.jpg",
+      "triangles": 0,
+      "tags": [
+        "3",
+        "bark",
+        "dark",
+        "smooth",
+        "tree",
+        "wood"
+      ],
+      "extra": {
+        "downloads": [
+          "1K-JPG",
+          "2K-JPG",
+          "4K-JPG",
+          "8K-JPG",
+          "1K-PNG",
+          "2K-PNG",
+          "4K-PNG",
+          "8K-PNG"
+        ]
+      },
+      "ref": "ambientcg:Bark003",
+      "folder": "ambientcg/Bark003",
+      "fetched": "2026-10-21T01:12:06",
+      "tool": "free-assets 0.1.0",
+      "options": {
+        "resolution": "1k",
+        "format": null
+      },
+      "files": [
+        {
+          "path": "Bark003.png",
+          "size": 359148,
+          "sha256": "ed3d114804800ca633d8afac0785154221226da9ef24b6c9a4dcc797c500268c"
+        },
+        {
+          "path": "Bark003_1K-JPG_AmbientOcclusion.jpg",
+          "size": 554470,
+          "sha256": "60351dd5bce5cc8d6be6288e207bd9be322c0ae6a834ff38e12914652cff132e"
+        },
+        {
+          "path": "Bark003_1K-JPG_Color.jpg",
+          "size": 1261332,
+          "sha256": "9b0a65088b63ce2d5d2e5b7c33275dbc928e6e6674270f07ccc635d9eb742e73"
+        },
+        {
+          "path": "Bark003_1K-JPG_Displacement.jpg",
+          "size": 429168,
+          "sha256": "388bd751e4bf7019468f9da77985e3b0bf720b504fe92415095d2f7dc6760fc6"
+        },
+        {
+          "path": "Bark003_1K-JPG_NormalDX.jpg",
+          "size": 2570614,
+          "sha256": "0f8f0cee1d93408e4c14af6bdc4419cc7428a7efd8e0e14648b9e98fec0578c4"
+        },
+        {
+          "path": "Bark003_1K-JPG_NormalGL.jpg",
+          "size": 2568702,
+          "sha256": "22dbd485bc158140decf00e53a73390af74566990a29ad866ce18a396dc0345f"
+        },
+        {
+          "path": "Bark003_1K-JPG_Roughness.jpg",
+          "size": 656514,
+          "sha256": "57f63ad973b506ed16a84eaa0e1c386aafb7f79100d748a59aad7d27074ef284"
+        }
+      ],
+      "attribution_required": false,
+      "licence_summary": "public domain, no conditions",
+      "approved_by": "user: ambientCG CC0 approved 2026-10-20; tree trunk bark"
+    },
+    {
+      "source": "ambientcg",
+      "id": "PaintedWood008A",
+      "name": "Painted Wood 008 A",
+      "kind": "texture",
+      "licence": "CC0",
+      "page_url": "https://ambientcg.com/view?id=PaintedWood008A",
+      "authors": [
+        "ambientCG (Lennart Demes)"
+      ],
+      "licence_note": "CC0 1.0",
+      "thumbnail": "https://f003.backblazeb2.com/file/ambientCG-Web/media/surface-preview/PaintedWood008A/PaintedWood008A_SQ_Color.jpg",
+      "triangles": 0,
+      "tags": [
+        "8",
+        "blue",
+        "light",
+        "painted",
+        "wood"
+      ],
+      "extra": {
+        "downloads": [
+          "1K-JPG",
+          "2K-JPG",
+          "4K-JPG",
+          "8K-JPG",
+          "1K-PNG",
+          "2K-PNG",
+          "4K-PNG",
+          "8K-PNG"
+        ]
+      },
+      "ref": "ambientcg:PaintedWood008A",
+      "folder": "ambientcg/PaintedWood008A",
+      "fetched": "2026-10-21T17:08:00",
+      "tool": "free-assets 0.1.0",
+      "options": {
+        "resolution": "1k",
+        "format": null
+      },
+      "files": [
+        {
+          "path": "PaintedWood008A.png",
+          "size": 340381,
+          "sha256": "0e967ac9ae9194a6b5ab81b23575baac4f7f5c6aed00b49732b977c4465f9ff6"
+        },
+        {
+          "path": "PaintedWood008A_1K-JPG_AmbientOcclusion.jpg",
+          "size": 545724,
+          "sha256": "e017a5691a4d7982707ea4b0e1fbd44c61bd8e137216bd208999fba5c095573c"
+        },
+        {
+          "path": "PaintedWood008A_1K-JPG_Color.jpg",
+          "size": 1334055,
+          "sha256": "ad212c94cb78527e4a3e2c5746a1aa6ac02090504543d8a6dcbd98995265dad1"
+        },
+        {
+          "path": "PaintedWood008A_1K-JPG_Displacement.jpg",
+          "size": 309962,
+          "sha256": "8907a96ef3ba749d8a18f202f9e68d10c8b4b6cd311400b47d83f8130b450e5a"
+        },
+        {
+          "path": "PaintedWood008A_1K-JPG_NormalDX.jpg",
+          "size": 1615710,
+          "sha256": "b047a1d4830998320cbef6353b3c7e56e83c778f3b0a061b0f52392e06bf107e"
+        },
+        {
+          "path": "PaintedWood008A_1K-JPG_NormalGL.jpg",
+          "size": 1613696,
+          "sha256": "4b418728e94cb6889a0853bfbe1ab9714ea24217dd8cc5d8df712a58a35d6fef"
+        },
+        {
+          "path": "PaintedWood008A_1K-JPG_Roughness.jpg",
+          "size": 488886,
+          "sha256": "f90164a3a0aa4c4f52229b90dddaecb1c12af1bbe635db9f97a03c9df3d805ee"
+        }
+      ],
+      "attribution_required": false,
+      "licence_summary": "public domain, no conditions",
+      "approved_by": "user, 21 Oct 2026 (two CC0 wood textures)"
+    },
+    {
+      "source": "ambientcg",
+      "id": "PaintedWood009C",
+      "name": "Painted Wood 009 C",
+      "kind": "texture",
+      "licence": "CC0",
+      "page_url": "https://ambientcg.com/view?id=PaintedWood009C",
+      "authors": [
+        "ambientCG (Lennart Demes)"
+      ],
+      "licence_note": "CC0 1.0",
+      "thumbnail": "https://f003.backblazeb2.com/file/ambientCG-Web/media/surface-preview/PaintedWood009C/PaintedWood009C_SQ_Color.jpg",
+      "triangles": 0,
+      "tags": [
+        "9",
+        "beige",
+        "clean",
+        "light",
+        "old",
+        "painted",
+        "wood"
+      ],
+      "extra": {
+        "downloads": [
+          "1K-JPG",
+          "2K-JPG",
+          "4K-JPG",
+          "8K-JPG",
+          "1K-PNG",
+          "2K-PNG",
+          "4K-PNG",
+          "8K-PNG"
+        ]
+      },
+      "ref": "ambientcg:PaintedWood009C",
+      "folder": "ambientcg/PaintedWood009C",
+      "fetched": "2026-10-21T04:26:48",
+      "tool": "free-assets 0.1.0",
+      "options": {
+        "resolution": "1k",
+        "format": null
+      },
+      "files": [
+        {
+          "path": "PaintedWood009C.png",
+          "size": 313337,
+          "sha256": "99a4a564941e14f00d2844e1c73cb1b97ca2f0486b5291b8cda6652088de2358"
+        },
+        {
+          "path": "PaintedWood009C_1K-JPG_AmbientOcclusion.jpg",
+          "size": 589503,
+          "sha256": "d6fd261581a7873047864af8fee6c1755e8dfe55f570bb6dfe06ddd18e28a730"
+        },
+        {
+          "path": "PaintedWood009C_1K-JPG_Color.jpg",
+          "size": 1253297,
+          "sha256": "2e7cfdfce8691369c5e2997433bc60c01040283c92584202daaf7619df360ed4"
+        },
+        {
+          "path": "PaintedWood009C_1K-JPG_Displacement.jpg",
+          "size": 351621,
+          "sha256": "cfc0380db0c23b8065d2a29ae45010c790b5108812641d52aa146b4ee804fa37"
+        },
+        {
+          "path": "PaintedWood009C_1K-JPG_NormalDX.jpg",
+          "size": 1745595,
+          "sha256": "b8af0cae6483d3b16f0b03d1eb2226ea9fc86e2ac39dffcf2a0673d229829522"
+        },
+        {
+          "path": "PaintedWood009C_1K-JPG_NormalGL.jpg",
+          "size": 1745558,
+          "sha256": "6df31a8b25275e27630c2596844e118bd3d199f8c9aa7f1eb054be0d6d062b64"
+        },
+        {
+          "path": "PaintedWood009C_1K-JPG_Roughness.jpg",
+          "size": 534305,
+          "sha256": "51382221fec534381abf41a437e70574b663d842f261c2c3613c7dcaa00c0a57"
+        }
+      ],
+      "attribution_required": false,
+      "licence_summary": "public domain, no conditions",
+      "approved_by": "user: ambientCG CC0 approved 2026-10-20; shed and house painted wood"
+    },
+    {
+      "source": "ambientcg",
+      "id": "Wood049",
+      "name": "Wood 049",
+      "kind": "texture",
+      "licence": "CC0",
+      "page_url": "https://ambientcg.com/view?id=Wood049",
+      "authors": [
+        "ambientCG (Lennart Demes)"
+      ],
+      "licence_note": "CC0 1.0",
+      "thumbnail": "https://f003.backblazeb2.com/file/ambientCG-Web/media/surface-preview/Wood049/Wood049_SQ_Color.jpg",
+      "triangles": 0,
+      "tags": [
+        "049",
+        "49",
+        "brown",
+        "furniture",
+        "grain",
+        "horizontal",
+        "interior",
+        "modern",
+        "natural",
+        "oak",
+        "plain",
+        "smooth",
+        "wood",
+        "wood049"
+      ],
+      "extra": {
+        "downloads": [
+          "1K-JPG",
+          "2K-JPG",
+          "4K-JPG",
+          "8K-JPG",
+          "1K-PNG",
+          "2K-PNG",
+          "4K-PNG",
+          "8K-PNG"
+        ]
+      },
+      "ref": "ambientcg:Wood049",
+      "folder": "ambientcg/Wood049",
+      "fetched": "2026-10-21T17:08:06",
+      "tool": "free-assets 0.1.0",
+      "options": {
+        "resolution": "1k",
+        "format": null
+      },
+      "files": [
+        {
+          "path": "Wood049.png",
+          "size": 294018,
+          "sha256": "3ce20cc60953baa259b1de1d8ef893a6cbc0ff3ec1822f1ed5849ef21c855ae7"
+        },
+        {
+          "path": "Wood049_1K-JPG_Color.jpg",
+          "size": 954756,
+          "sha256": "451ee4dd719628289b4969f75dc583b5f77f8471d5d885ba5015fd90e7e5ce61"
+        },
+        {
+          "path": "Wood049_1K-JPG_Displacement.jpg",
+          "size": 599648,
+          "sha256": "3fcb2a67d00a0fff5171d9a42e720765287a80a76a9e80eaf07405ca6ea1c1a2"
+        },
+        {
+          "path": "Wood049_1K-JPG_NormalDX.jpg",
+          "size": 1560334,
+          "sha256": "b5afe16b3ca4e0aed0d2c4332738541fccfdffedd07d4e14fba17281b23395fd"
+        },
+        {
+          "path": "Wood049_1K-JPG_NormalGL.jpg",
+          "size": 1559595,
+          "sha256": "e9aaec13f9c6199e7ec440433005a8c52a88332f26a3887fc057179089fb747a"
+        },
+        {
+          "path": "Wood049_1K-JPG_Roughness.jpg",
+          "size": 708949,
+          "sha256": "7683f29e71c24b987e4a7dcc74d5a9ed5ab4cac2e145d507799ba9c9c2c4ef54"
+        }
+      ],
+      "attribution_required": false,
+      "licence_summary": "public domain, no conditions",
+      "approved_by": "user, 21 Oct 2026 (two CC0 wood textures)"
+    },
+    {
+      "source": "polyhaven",
+      "id": "planter_pot_clay",
+      "name": "Planter Pot Clay",
+      "kind": "model",
+      "licence": "CC0",
+      "page_url": "https://polyhaven.com/a/planter_pot_clay",
+      "authors": [
+        "Amal Kumar"
+      ],
+      "licence_note": "CC0 1.0",
+      "thumbnail": "https://cdn.polyhaven.com/asset_img/thumbs/planter_pot_clay.png?width=512&height=512",
+      "triangles": 3080,
+      "tags": [
+        "outdoor",
+        "mossy",
+        "dirty",
+        "used",
+        "worn",
+        "shed",
+        "garden",
+        "gardening",
+        "farmhouse",
+        "greenhouse",
+        "landscaping",
+        "containers",
+        "vases",
+        "collection: the_shed"
+      ],
+      "extra": {
+        "dimensions": [
+          265.9967243671417,
+          263.4630501270294,
+          221.87034250237048
+        ],
+        "max_resolution": [
+          4096,
+          4096
+        ],
+        "texel_density": 6950.3651147291475
+      },
+      "ref": "polyhaven:planter_pot_clay",
+      "folder": "polyhaven/planter_pot_clay",
+      "fetched": "2026-10-21T00:27:50",
+      "tool": "free-assets 0.1.0",
+      "options": {
+        "resolution": "1k",
+        "format": null
+      },
+      "files": [
+        {
+          "path": "planter_pot_clay.bin",
+          "size": 78096,
+          "sha256": "effd0a038a75a054e55e2f5f71a84c57c1c6efc4e453ae3e62d4ce5167a2913c"
+        },
+        {
+          "path": "planter_pot_clay_1k.gltf",
+          "size": 2813,
+          "sha256": "f2989068dcff9737c9f3d49d435b70e36d553822ac87134daac055ae9706af1e"
+        },
+        {
+          "path": "textures/planter_pot_clay_arm_1k.jpg",
+          "size": 613484,
+          "sha256": "68e9e509db4e330b48924c606d4a9a99b54e105c1fe1690ff2811a05d95a0def"
+        },
+        {
+          "path": "textures/planter_pot_clay_diff_1k.jpg",
+          "size": 596319,
+          "sha256": "4f2962fd238401e49fd400596fdccd1ee9e2cca9ed21e44bb924dca3076f524c"
+        },
+        {
+          "path": "textures/planter_pot_clay_nor_gl_1k.jpg",
+          "size": 506446,
+          "sha256": "25a564e55b247a94863b513853b1aeaad5c894dd78e92e1fd89e794b83b483c4"
+        }
+      ],
+      "attribution_required": false,
+      "licence_summary": "public domain, no conditions",
+      "approved_by": "user: Poly Haven/ambientCG CC0 approved 2026-10-20; pipeline check asset"
+    }
+  ]
+}

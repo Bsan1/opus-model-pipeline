@@ -1,0 +1,81 @@
+{
+  "source": "ambientcg",
+  "id": "PaintedWood008A",
+  "name": "Painted Wood 008 A",
+  "kind": "texture",
+  "licence": "CC0",
+  "page_url": "https://ambientcg.com/view?id=PaintedWood008A",
+  "authors": [
+    "ambientCG (Lennart Demes)"
+  ],
+  "licence_note": "CC0 1.0",
+  "thumbnail": "https://f003.backblazeb2.com/file/ambientCG-Web/media/surface-preview/PaintedWood008A/PaintedWood008A_SQ_Color.jpg",
+  "triangles": 0,
+  "tags": [
+    "8",
+    "blue",
+    "light",
+    "painted",
+    "wood"
+  ],
+  "extra": {
+    "downloads": [
+      "1K-JPG",
+      "2K-JPG",
+      "4K-JPG",
+      "8K-JPG",
+      "1K-PNG",
+      "2K-PNG",
+      "4K-PNG",
+      "8K-PNG"
+    ]
+  },
+  "ref": "ambientcg:PaintedWood008A",
+  "folder": "ambientcg/PaintedWood008A",
+  "fetched": "2026-10-21T17:08:00",
+  "tool": "free-assets 0.1.0",
+  "options": {
+    "resolution": "1k",
+    "format": null
+  },
+  "files": [
+    {
+      "path": "PaintedWood008A.png",
+      "size": 340381,
+      "sha256": "0e967ac9ae9194a6b5ab81b23575baac4f7f5c6aed00b49732b977c4465f9ff6"
+    },
+    {
+      "path": "PaintedWood008A_1K-JPG_AmbientOcclusion.jpg",
+      "size": 545724,
+      "sha256": "e017a5691a4d7982707ea4b0e1fbd44c61bd8e137216bd208999fba5c095573c"
+    },
+    {
+      "path": "PaintedWood008A_1K-JPG_Color.jpg",
+      "size": 1334055,
+      "sha256": "ad212c94cb78527e4a3e2c5746a1aa6ac02090504543d8a6dcbd98995265dad1"
+    },
+    {
+      "path": "PaintedWood008A_1K-JPG_Displacement.jpg",
+      "size": 309962,
+      "sha256": "8907a96ef3ba749d8a18f202f9e68d10c8b4b6cd311400b47d83f8130b450e5a"
+    },
+    {
+      "path": "PaintedWood008A_1K-JPG_NormalDX.jpg",
+      "size": 1615710,
+      "sha256": "b047a1d4830998320cbef6353b3c7e56e83c778f3b0a061b0f52392e06bf107e"
+    },
+    {
+      "path": "PaintedWood008A_1K-JPG_NormalGL.jpg",
+      "size": 1613696,
+      "sha256": "4b418728e94cb6889a0853bfbe1ab9714ea24217dd8cc5d8df712a58a35d6fef"
+    },
+    {
+      "path": "PaintedWood008A_1K-JPG_Roughness.jpg",
+      "size": 488886,
+      "sha256": "f90164a3a0aa4c4f52229b90dddaecb1c12af1bbe635db9f97a03c9df3d805ee"
+    }
+  ],
+  "attribution_required": false,
+  "licence_summary": "public domain, no conditions",
+  "approved_by": "user, 21 Oct 2026 (two CC0 wood textures)"
+}
