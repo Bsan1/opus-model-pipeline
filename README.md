@@ -266,6 +266,8 @@ These are the rules that grew out of reviewing every model up close against the 
 
 ## Assets and licences
 
+The code is under the [MIT licence](LICENSE). The textures and outside assets keep their own licence (CC0, below).
+
 Every texture and outside asset in `tools/blender/external/` and `tools/blender/source_textures/` is **CC0** (public domain), from [ambientCG](https://ambientcg.com) and [Poly Haven](https://polyhaven.com). They are listed in `external/CREDITS.md` and `source_textures/LICENSES.md`.
 
 New outside assets go through `tools/Assets.ps1`. It refuses any licence outside `CC0`, `CC-BY`, `OGA-BY` and `BlenderKit-RF`, and records the source and authors. API keys for sources that need them are set by each user in their own terminal (`free-assets key set <source>`). Keys are never stored in the repository.
