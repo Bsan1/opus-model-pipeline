@@ -98,7 +98,8 @@ def pack(model, stage):
             with open(path, encoding="utf-8") as f:
                 lines += ["", f"**Guidance for {category}:**", "", f.read().strip()]
     lines += ["", f"**Geometry reviewed:** {spec.get('geometry', '?')}"]
-    with open(os.path.join(out, "brief.md"), "w", encoding="utf-8") as f:
+    with open(os.path.join(out, "brief.md"), "w", encoding="utf-8", newline="
+") as f:
         f.write("\n".join(lines) + "\n")
     print(f"pack: {os.path.relpath(out, ROOT)}\\{{sheet.png, brief.md}}; instructions: "
           f"{os.path.relpath(os.path.join(SKILL, 'review.md'), ROOT)}; findings -> py -3 tools/Review.py record {model} FILE")
@@ -140,7 +141,8 @@ def read_review(model):
 
 
 def write_review(model, review):
-    with open(os.path.join(REVIEWS, model + ".json"), "w", encoding="utf-8") as f:
+    with open(os.path.join(REVIEWS, model + ".json"), "w", encoding="utf-8", newline="
+") as f:
         json.dump(review, f, ensure_ascii=False, indent=2)
         f.write("\n")
 
