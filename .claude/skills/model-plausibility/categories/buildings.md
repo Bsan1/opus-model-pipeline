@@ -26,4 +26,5 @@
 - **Vertex AO needs vertices along long faces** (`part(ao_grid=...)`). A door panel is built inside its frame, not under it.
 - **Measure proportions from the frame:** the door height against the wall, the roof pitch, the side/front ratio. The shed is 2.6 × 2.6 m with a 45° roof, not 3 × 2.6 m with 34°.
 - **Engine:** a mesh over 64k vertices stays out of static batching (`YardBuilder.Batchable`).
+- **Show what carries the load.** A support hidden behind skirting, lattice or cladding needs a section view, because a joined building cannot hide its parts. Give the view `clip_through` at a point just inside the cover, and point the critical feature's `view` at it. The house's stairs and deck were "unverified" until a section showed them (23 October 2026). That section then showed the deck's 12 m front edge carried only by its two corner posts.
 - **Blind spots of the gates:** thin slots that look through onto front faces (a riser 5 mm above a tread). Look at close-up shots in the built game (the `u16_showroom` scenario in the game project: deck corner, steps, downspout, porch and eave corners), and at far shots for moiré.

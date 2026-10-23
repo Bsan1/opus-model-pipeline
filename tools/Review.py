@@ -152,6 +152,17 @@ def pack(model, stage):
             if os.path.exists(source):
                 shutil.copyfile(source, os.path.join(out, item["overlay"]))
                 files.append(item["overlay"])
+    # Each feature's view at full size: on the whole sheet, shrunk to fit a reviewer, small members vanish (23 October 2026:
+    # the house's stairs and deck supports stayed unverified on a 1920 x 5138 sheet)
+    folder = os.path.join(p["renders"], model + ("_preview" if stage == "preview" else ""))
+    closeups = {}
+    for feature in spec.get("features") or []:
+        view = feature.get("view")
+        if feature["tier"] in ("critical", "important") and view and os.path.exists(os.path.join(folder, view + ".png")):
+            closeups.setdefault(f"view_{view}.png", []).append(feature["id"])
+    for name in closeups:
+        shutil.copyfile(os.path.join(folder, name[5:]), os.path.join(out, name))
+        files.append(name)
     pack_id = sha(spec.get("structure", "") + "".join(sha_file(os.path.join(out, f)) for f in files) + stage)[:12]
     plan = spec.get("plan")
     lines = [f"# Review brief: {model} ({stage})", "",
@@ -171,6 +182,8 @@ def pack(model, stage):
     else:
         lines += ["No component plan: judge the object from the sheet and the notes below."]
     features = [f for f in spec.get("features") or [] if f["tier"] in ("critical", "important")]
+    if closeups:
+        lines += ["", "**Close-ups to read as well** (full size): " + "; ".join(f"`{n}` ({', '.join(ids)})" for n, ids in closeups.items())]
     if features:
         lines += ["", "**Features you must give a verdict on** (pass / fail / unverified; unverified when the renders do "
                       "not show it):", "", "| Id | Tier | Expected | Measured by the build | Look at |", "|---|---|---|---|---|"]

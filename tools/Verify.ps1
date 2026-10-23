@@ -278,6 +278,13 @@ elseif (-not $NoUnity -and $failed.Count -eq 0) {
         Write-Host 'Unity: unchanged'
     }
     else {
+        # One prefab per model (Opus.Editor.ModelPrefabs) before the tests check them
+        $log = Join-Path $LogRoot 'verify-prefabs.log'
+        if ((Invoke-Step 'Prefabs.ps1' @() $log) -ne 0) { Write-Host 'Prefabs: FAILED (Logs\verify-prefabs.log, Logs\unity-prefabs.log)'; $failed += 'prefabs' }
+        else {
+            $line = Select-String -LiteralPath (Join-Path $LogRoot 'unity-prefabs.log') -Pattern '\[Opus\] Model prefabs: \d+' | Select-Object -Last 1
+            Write-Host ($(if ($line) { 'Prefabs: ' + ($line.Line -replace '.*Model prefabs: ', '') } else { 'Prefabs: ok' }))
+        }
         $log = Join-Path $LogRoot 'verify-tests.log'
         $code = Invoke-Step 'Test.ps1' @('-Platform', 'EditMode') $log
         $line = Select-String -LiteralPath $log -Pattern '^Tests:' | Select-Object -First 1

@@ -645,6 +645,40 @@ namespace Opus.Tests
         }
 
         /// <summary>
+        /// Every model is an FBX and a prefab (the user, 23 October 2026): Assets/Opus/Prefabs/Models/&lt;model&gt;.prefab, a variant
+        /// of the FBX with every part, carrying the game's materials as saved assets (not the FBX's placeholders, nothing that
+        /// exists only in memory), whose textures are assets too; no prefab without a model.
+        /// </summary>
+        [Test]
+        public void EveryModelHasAPrefab()
+        {
+            var prefabs = Directory.GetFiles(ModelPrefabs.Folder, "*.prefab").Select(Path.GetFileNameWithoutExtension).OrderBy(n => n);
+            CollectionAssert.AreEqual(Models().ToArray(), prefabs.ToArray(), "one prefab per model (tools/Prefabs.ps1)");
+            foreach (string model in Models())
+            {
+                var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(ModelPrefabs.PrefabPath(model));
+                Assert.IsNotNull(prefab, $"{model}: no prefab");
+                Assert.AreEqual(LoadModel(model), PrefabUtility.GetCorrespondingObjectFromSource(prefab), $"{model}: the prefab is not a variant of its FBX");
+                foreach (ObjectSpec o in LoadSpec(model).objects)
+                {
+                    Transform part = prefab.transform.Find(o.name);
+                    Assert.IsNotNull(part, $"{model}: the prefab has no part {o.name}");
+                    foreach (Material material in part.GetComponent<MeshRenderer>().sharedMaterials)
+                    {
+                        Assert.IsNotNull(material, $"{model}/{o.name}: a missing material");
+                        string path = AssetDatabase.GetAssetPath(material);
+                        StringAssert.StartsWith(ModelPrefabs.MaterialFolder + model + "/", path, $"{model}/{o.name}: '{material.name}' is not a saved game material");
+                        foreach (int id in material.GetTexturePropertyNameIDs())
+                        {
+                            Texture texture = material.GetTexture(id);
+                            Assert.IsTrue(texture == null || AssetDatabase.Contains(texture), $"{model}/{material.name}: a texture that exists only in memory");
+                        }
+                    }
+                }
+            }
+        }
+
+        /// <summary>
         /// What each model costs once imported, measured, not judged (22 October 2026, after the delivery checks of
         /// blender-game-skills: UV and normal seams split vertices, so Unity's vertex count is not Blender's). Writes
         /// Builds/QC/delivery.json (tools/Verify.ps1 prints one line from it); asserts only that every part was measured.

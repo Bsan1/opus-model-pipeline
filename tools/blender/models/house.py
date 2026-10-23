@@ -102,9 +102,9 @@ model.plan(
     supports=("ground",), tier="complex", category="buildings")
 model.features([   # id, tier, components, what must hold, measured by, view
     ("stairs_carried", "critical", ["Steps", "DeckFrame"],
-     "notched stringers carry the treads from the ground up to the deck frame", None, "deck"),
+     "notched stringers carry the treads from the ground up to the deck frame", None, "steps_side"),
     ("deck_carried", "critical", ["DeckFrame", "SkirtPosts", "WallCore"],
-     "the deck frame rests on a ledger on the wall and on posts at its outer edge", None, "deck"),
+     "the deck frame rests on a ledger on the wall and on posts at its outer edge", None, "deck_under"),
     ("porch_roof_carried", "critical", ["PorchRoof", "PorchPosts", "WallCore"],
      "the porch roof rests on the wall and on a beam carried by the posts", None, "garden"),
     ("downspouts", "important", ["Downspouts", "Gutter", "SplashBlocks"],
@@ -583,7 +583,9 @@ def build_gutters():
         om.loft(bm, rings, material=0)
         # Downspouts: from the end of the gutter to the gable wall with an elbow, down along the wall, an elbow onto a stone at the bottom
         for sx in (-1, 1):
-            out = Vector((sx * (HW + 0.12), top - 0.105, z_face + sz * 0.06))
+            # The top end sits in the middle of the gutter's 6 mm bottom (-0.104..-0.110): at -0.105 it was 1 mm under the inner
+            # face, which the z-fighting gate counts as the same plane (found once the face order became canonical, 23 October 2026)
+            out = Vector((sx * (HW + 0.12), top - 0.107, z_face + sz * 0.06))
             wall_x = sx * (HW + TRIM_OUT + 0.035)   # in front of the corner board
             z_down = sz * (HD - 0.15)
             # The shoe at the bottom points out and down and ends 8 cm above the splash block (it used to end in the block)
@@ -905,6 +907,15 @@ model.finish(
         {"file": "street", "label": "Street facade", "objects": everything, "direction": unity_dir(0.6, 0.3, 1.0), "ground": 0.0},
         {"file": "deck", "label": "Deck: railing, lattice, step", "objects": everything,
          "direction": unity_dir(-0.5, 0.25, -1.0), "target": unity_dir(0.5, 0.7, -7.6), "radius": 2.2, "ground": 0.0},
+        # The two critical features no other view shows (23 October 2026: the review left them unverified)
+        {"file": "steps_side", "label": "Section through the middle stringer: notched under the treads, from the ground to the rim joist",
+         "objects": everything, "direction": unity_dir(-1.0, 0.04, 0.0), "target": unity_dir((STEP0 + STEP1) * 0.5, 0.25, DZ0 - 0.3),
+         "radius": 0.55, "ground": 0.0, "clip_through": unity_dir((STEP0 + STEP1) * 0.5 - 0.03, 0.25, DZ0 - 0.3)},
+        # A section through the front rim joist (the lattice and the rim's front cut away): what carries the deck's outer
+        # edge along its whole length (a camera inside the skirt only saw the nearest joist; one from below read as noise)
+        {"file": "deck_under", "label": "Section just inside the front rim joist, west half: what carries the deck's outer edge",
+         "objects": everything, "direction": unity_dir(0.0, 0.12, -1.0), "target": unity_dir(-2.0, 0.22, DZ0 + 0.6),
+         "radius": 2.3, "lens": 35, "ground": 0.0, "clip_through": unity_dir(-2.0, 0.22, DZ0 + 0.01)},
         {"file": "door", "label": "Doors and porch", "objects": everything, "direction": unity_dir(-0.2, 0.15, -1.0),
          "target": unity_dir(4.6, 1.8, -5.2), "radius": 2.3, "ground": 0.0},
         {"file": "window", "label": "Upper floor window", "objects": everything, "direction": unity_dir(-0.3, 0.05, -1.0),

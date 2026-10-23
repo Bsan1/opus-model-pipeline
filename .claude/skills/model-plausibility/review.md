@@ -6,6 +6,7 @@ You are reviewing a procedurally generated 3D model for **functional and structu
 
 - `sheet.png`: labelled renders from several angles, the material card, the **plan card** (every component: role, how it moves, seen or guessed, its job, what it is attached to) and, when available, reference crops.
 - `brief.md`: purpose, sources, the plan table, declared links, the measured gate numbers, the generator's notes on the source, and the guidance for this object's category.
+- `view_*.png`: the views of the critical and important features at full size, listed in the brief under "Close-ups". Judge those features on them: the sheet is shrunk to fit and small members vanish there.
 
 ## Look for specific contradictions
 

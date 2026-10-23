@@ -126,7 +126,7 @@ FINISHES = {"glossy": (0.22, 0.0), "satin": (0.5, 0.0), "matte": (0.85, 0.0), "m
 
 # The component plan's words (Model.plan)
 PLAN_TIERS = ("simple", "complex")
-PLAN_SOURCE_KINDS = ("video", "image", "model", "text")
+PLAN_SOURCE_KINDS = ("video", "image", "model", "text", "web")   # web: what the research found (SKILL.md 2b)
 PLAN_ROLES = ("functional", "structural", "decorative")
 PLAN_MOVES = ("fixed", "hinge", "slide", "spin", "flex", "free")
 PLAN_SEEN = ("seen", "guess", "real")
@@ -251,6 +251,80 @@ def grid_cut(bm, spacing):
             bmesh.ops.bisect_plane(bm, geom=bm.verts[:] + bm.edges[:] + bm.faces[:], dist=1e-5, plane_co=co,
                                    plane_no=normal)
             k += 1
+
+
+def canonical_order(bm):
+    """
+    Puts a bmesh's vertices, edges and faces in an order given by their geometry alone, so the same model always comes out
+    the same. 23 October 2026: bmesh operators such as extrude_face_region and inset_region order the faces they make by
+    memory address, so the wheel came out with its faces in another order at every build (with the same vertices and the
+    same PYTHONHASHSEED), and the smart UV unwrap, the packing and the export's triangulation followed that order: its UVs
+    and atlas differed from build to build. Sorting is stable, so coincident elements keep their (deterministic) order.
+    """
+    def key(co):
+        return tuple(round(c, 5) for c in co)
+
+    def sort(seq, order):
+        # BMElemSeq.sort wants a number: rank the elements in Python first (a stable sort)
+        rank = {element: i for i, element in enumerate(sorted(seq, key=order))}
+        seq.sort(key=lambda element: rank[element])
+        seq.index_update()
+
+    sort(bm.verts, lambda v: key(v.co))
+    sort(bm.edges, lambda e: tuple(sorted((key(e.verts[0].co), key(e.verts[1].co)))))
+    sort(bm.faces, lambda f: (f.material_index, key(f.calc_center_median()), tuple(sorted(key(v.co) for v in f.verts))))
+
+
+def canonical_mesh(mesh):
+    """
+    canonical_order for a mesh whose modifiers were applied (the bevel modifier orders its output its own way). The custom
+    (weighted) normals do not survive a BMesh round trip in the new order (measured: 136 of 216 corners of a bevelled cube
+    changed), so every corner's normal is saved by its face centre and vertex position and written back.
+    """
+    def key(co):
+        return tuple(round(c, 5) for c in co)
+
+    custom = mesh.has_custom_normals
+    saved = {}
+    if custom:
+        normals = mesh.corner_normals
+        for p in mesh.polygons:
+            centre = key(p.center)
+            for li in p.loop_indices:
+                saved[(centre, key(mesh.vertices[mesh.loops[li].vertex_index].co))] = tuple(normals[li].vector)
+    bm = bmesh.new()
+    bm.from_mesh(mesh)
+    canonical_order(bm)
+    bm.to_mesh(mesh)
+    bm.free()
+    # Every face starts at its smallest corner: the operators also vary where a face's loop starts, and a quad's
+    # triangulation (bake, export) follows its first corner when both diagonals are equal (the wheel's flat lug quads)
+    loops = mesh.loops
+    count = len(loops)
+    perm = list(range(count))
+    for p in mesh.polygons:
+        start, total = p.loop_start, p.loop_total
+        first = min(range(total), key=lambda k: key(mesh.vertices[loops[start + k].vertex_index].co))
+        for k in range(total):
+            perm[start + k] = start + (first + k) % total
+    if perm != list(range(count)):
+        for prop in ("vertex_index", "edge_index"):
+            values = [0] * count
+            loops.foreach_get(prop, values)
+            loops.foreach_set(prop, [values[perm[i]] for i in range(count)])
+        for layer in mesh.uv_layers:
+            values = [0.0] * (2 * count)
+            layer.data.foreach_get("uv", values)
+            layer.data.foreach_set("uv", [values[2 * perm[i] + j] for i in range(count) for j in (0, 1)])
+    if custom:
+        mesh.update()
+        loop_normals = [None] * len(mesh.loops)
+        for p in mesh.polygons:
+            centre = key(p.center)
+            for li in p.loop_indices:
+                loop_normals[li] = saved.get((centre, key(mesh.vertices[mesh.loops[li].vertex_index].co)), tuple(p.normal))
+        mesh.normals_split_custom_set(loop_normals)
+    mesh.update()
 
 
 def finish_shell(bm, faces=None):
@@ -1487,7 +1561,7 @@ class Model:
         whether it moves and whether its form was seen or guessed. Decorative details are fine; a detail that suggests a
         function (a button, a cable, a latch) has to have it.
         purpose: what the object is and how it is used, one sentence.
-        sources: [(kind, where)]: kind video | image | model | text; where: frame times, a file, the user's words.
+        sources: [(kind, where)]: kind video | image | model | text | web; where: frame times, a file, the user's words, a page.
         components: [(name, role, job, attaches_to, moves, source)]:
           role functional | structural | decorative; job: what it does (or, if decorative, why it is there);
           attaches_to: [names of other components or of `supports`];
@@ -1729,6 +1803,7 @@ class Model:
                     v[planes] = rotation @ Vector(v[planes])
         if not foliage:
             finish_shell(bm)   # on leaves the two faces already face opposite ways; not a shell
+        canonical_order(bm)
         mesh = bpy.data.meshes.new(name)
         bm.to_mesh(mesh)
         bm.free()
@@ -1802,6 +1877,7 @@ class Model:
                 mod.weight = 50
                 mod.keep_sharp = True
                 self._apply_modifiers(obj)
+        canonical_mesh(obj.data)   # (also for parts that had no modifier to apply)
         if PLANE_N in obj.data.attributes:
             _plane_normals(obj.data)
         self.parts.append((obj, closed))
@@ -2013,6 +2089,7 @@ class Model:
         obj.data = mesh
         mesh.name = obj.name
         bpy.data.meshes.remove(old)
+        canonical_mesh(mesh)   # modifiers (bevel, booleans) order their output their own way: the same model, the same order
 
     # ----------------------------------------------------------------------------------------------------------
 
@@ -2698,8 +2775,8 @@ class Model:
         - geometry: per part, the set of vertex positions (0.1 mm) and, per material, the face count and area (mm²);
         - uvs: per part and UV layer, the set of (corner position, UV) pairs.
         23 October 2026: hashing vertices and faces in mesh order gave the calibration model a new hash at every build of
-        the same geometry, and the wheel cuts one quad along a different diagonal from build to build (the cause is not
-        found); either would have outdated every review and approval on a rebuild.
+        the same geometry, and the wheel's faces came in another order at every build (bmesh operators order by memory
+        address: fixed by canonical_order / canonical_mesh); either would have outdated every review and approval.
         """
         geometry, uvs = hashlib.sha1(), hashlib.sha1()
         for obj, _ in sorted(self.parts, key=lambda p: p[0].name):
@@ -2724,7 +2801,9 @@ class Model:
     def render(self, views, references, folder=None):
         """
         views: [{"file", "label", "objects": [name...], "direction": (x,y,z), "zoom": 1, "target": (x,y,z)|None,
-                 "offsets": {name: (x,y,z)}, "ortho": False}]
+                 "offsets": {name: (x,y,z)}, "ortho": False, "clip_through": (x,y,z)|None}]
+                 clip_through: a section view; the camera's near plane passes through this point, cutting away what is in
+                 front of it (a joined building cannot hide its parts, so this is how the inside of a deck is shown)
         references: [{"label", "path" (relative to the project root), "crop": [x, y, w, h]}] (PowerShell crops)
         folder: Builds/Models/<folder> (default the model's name; the preview uses <name>_preview)
         """
@@ -2766,6 +2845,10 @@ class Model:
             camera.data.clip_start = distance * 0.01
             camera.data.clip_end = distance * 10.0 + 10.0
             camera.location = center + direction * distance
+            if view.get("clip_through"):
+                # A section: everything nearer than this point is cut away (the lattice in front of a deck's supports)
+                depth = (Vector(view["clip_through"]) - camera.location).dot(-direction)
+                camera.data.clip_start = max(0.001, depth)
             camera.rotation_euler = (center - camera.location).to_track_quat("-Z", "Y").to_euler()
             scene.render.filepath = os.path.join(out_dir, view["file"] + ".png")
             bpy.ops.render.render(write_still=True)

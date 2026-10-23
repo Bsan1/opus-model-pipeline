@@ -22,7 +22,8 @@ texturing ── atlas pipeline (small models: baked colour/normal/ORM)
           └─ tiled pipeline (buildings: UVs in metres + shared tiling textures)
    ▼
 outputs ── Assets/Opus/Resources/Models/<name>.fbx
-           Assets/Opus/ModelSpecs/<name>.json   (sizes, pivot, tris, volume, materials in Unity axes)
+           Assets/Opus/ModelSpecs/<name>.json   (sizes, pivot, tris, volume, materials, plan, fingerprints)
+           Assets/Opus/Prefabs/Models/<name>.prefab  (in the Unity project: the FBX with the game's materials)
            Builds/Models/<name>_contact.png     (labelled renders + material card)
    ▼
 Unity (unity/) ── ModelImport fixes import settings, ModelImportTests compares the FBX with its spec,
@@ -44,6 +45,8 @@ Unity (unity/) ── ModelImport fixes import settings, ModelImportTests compar
 | `tools/Board.py` | **Puts many screenshots or crops on one labelled image**, so they can be reviewed in one look. |
 | `tools/Review.py` | **The independent plausibility review and the approval state.** `pack` writes one image, a brief and a manifest (pack id, hashes); `record` accepts only findings that name this pack and only if its files did not change; `carry` moves a preview review to the final build only when its structure demonstrably did not change; `approve` and `state` keep the user's approval apart from reviews. |
 | `tools/Compare.py`, `tools/blender/compare_render.py`, `tools/blender/references/` | **Measured comparison with a reference frame.** It solves the frame's camera from landmarks picked by hand and reports the alignment, each landmark's leave-one-out error and each segment's length ratio. It renders an overlay. Advisory unless aligned. |
+| `tools/Prefabs.ps1`, `unity/Editor/ModelPrefabs.cs` | **One prefab per model** inside the Unity project: `Assets/Opus/Prefabs/Models/<model>.prefab` (a Prefab Variant of the FBX with the game's materials), its materials saved in `Prefabs/Models/Materials/<model>/`. In the game project, every build and `Verify.ps1` run it, and `ModelImportTests.EveryModelHasAPrefab` checks it. |
+| `.claude/skills/model-plausibility/research/` | **What was learned about each kind of object before modelling it**: sources, the tricks adopted and rejected (skill step 2b). Read before searching again. |
 | `tools/tests/` | **Tests of the review, approval and comparison logic**, plain Python, no Blender: `py -3 -m unittest discover -s tools/tests`. |
 | `.claude/skills/model-plausibility/` | **How to plan and review a model** (a Claude Code skill; readable by anyone): principles, a guidance file per category (`machines`, `suspended`, `buildings`, `organic`), `lessons.md` (past mistakes as general rules) and `review.md` (the reviewer's instructions and output format). |
 | `tools/blender/reviews/`, `tools/blender/approvals.json` | **Decision records:** what a reviewer found, and which geometry the user approved. Keyed by the model's geometry hash. |
@@ -277,7 +280,11 @@ The modelling rules that came out of this work live in that skill, so they exist
 - the rules per kind of object in `categories/*.md`;
 - every past mistake with the principle it broke and what catches it now in `lessons.md`.
 
-Sources can be a video, an image, a 3D model or a text description. The plan names which, and the skill says how each is read.
+Sources can be a video, an image, a 3D model, a text description or web research. The plan names which, and the skill says how each is read.
+
+**Research first.** Before the first model of a new kind of object, look up how others model it for games and how it is really built: breakdowns, tutorials, construction guides. Keep it to a small budget of at most 3 searches and 4 pages. The tricks adopted and rejected are kept in `research/<kind>.md`, so the next model of that kind reads them instead of searching again.
+
+**Reproducible builds.** The same generator gives the same mesh, UVs, atlas and FBX mesh at every build. Some bmesh operators (`extrude_face_region`, `inset_region`) and the bevel modifier order their output by memory address, so `om.canonical_order` and `om.canonical_mesh` reorder every part by its geometry, keeping its custom normals. `checks/determinism.py` fails without that.
 
 ## Not in this repository
 
