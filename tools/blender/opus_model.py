@@ -1339,6 +1339,8 @@ class Model:
         self.supports = []         # where something outside the model holds it (support())
         self.located = []          # plan components tied to geometry (a part, route, attachment, support or anchor)
         self.feature_data = []     # identity-defining features with their acceptance (features())
+        self.bevels = {}           # part -> chamfer width in metres (None: none): Style.py checks the style's chamfer band
+        self.unchamfered = {}      # part -> why it has no chamfer on purpose (part(no_chamfer=...))
         bpy.ops.wm.read_factory_settings(use_empty=True)
         scene = bpy.context.scene
         scene.unit_settings.system = "METRIC"
@@ -1763,10 +1765,13 @@ class Model:
         return result
 
     def part(self, name, bm, materials, location=(0.0, 0.0, 0.0), closed=True, bevel=None, smooth=True, sharp=60.0,
-             unity=False, cutters=None, weighted=True, foliage=False, tone_jitter=0.0, ao_grid=None, free=False):
+             unity=False, cutters=None, weighted=True, foliage=False, tone_jitter=0.0, ao_grid=None, free=False,
+             no_chamfer=""):
         """
         Builds a part (object) from a bmesh.
         free: the part may stand apart from the rest (the calibration markers); every other part must be held by the others
+        no_chamfer: why this part has no chamfer on purpose (a cord, a round tube with hidden ends); the style's chamfer check
+            (Style.py, rule edges.chamfer) then skips it instead of reporting it
         or the ground (the construction gate).
         tone_jitter: the tone of every separate shell (board, shingle tab) varies randomly by this fraction (baked into the vertex colour).
         ao_grid: (x, y, z) metres (None = no cut on that axis; Unity axes if unity=True): long faces are split at these
@@ -1842,6 +1847,11 @@ class Model:
             self._apply_modifiers(obj)
             bpy.data.objects.remove(cutter)
             bpy.data.meshes.remove(cutter_mesh)
+        if bevel and no_chamfer:
+            raise ValueError(f"{name}: a bevel and no_chamfer together")
+        self.bevels[name] = bevel["width"] if bevel else None
+        if no_chamfer:
+            self.unchamfered[name] = no_chamfer
         if bevel:
             mod = obj.modifiers.new("Bevel", "BEVEL")
             mod.width = bevel["width"]
@@ -2734,9 +2744,17 @@ class Model:
             spec["located"] = self.located
         if self.feature_data:
             spec["features"] = self.feature_data
+        if self.bevels:
+            spec["bevels_mm"] = {k: (round(v * 1000, 2) if v else None) for k, v in sorted(self.bevels.items())}
+        if self.unchamfered:
+            spec["unchamfered"] = dict(sorted(self.unchamfered.items()))
         if self.routes or self.attachments:
             spec["links"] = self._links_spec()
         spec.update(self._fingerprints())
+        style_path = os.path.join(ROOT, "tools", "blender", "style", "style.json")
+        if os.path.exists(style_path):   # the art style this model was built for (Style.py report flags an older one)
+            with open(style_path, encoding="utf-8") as f:
+                spec["style_version"] = json.load(f).get("style_version")
         path = os.path.join(SPEC_DIR, self.name + ".json")
         with open(path, "w", encoding="utf-8") as f:
             json.dump(spec, f, ensure_ascii=False, indent=2)

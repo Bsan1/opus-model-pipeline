@@ -73,3 +73,16 @@ function Invoke-Unity {
     Show-UnityLogSummary $log
     return $process.ExitCode
 }
+
+# Blender (tools/Models.ps1, tools/LookDev.ps1): -BlenderPath, then $env:BLENDER, then the usual install folders
+function Get-BlenderPath([string]$Override) {
+    $candidates = @($Override, $env:BLENDER,
+        'D:\Steam\steamapps\common\Blender\blender.exe',
+        'C:\Program Files (x86)\Steam\steamapps\common\Blender\blender.exe')
+    $candidates += @(Get-ChildItem 'C:\Program Files\Blender Foundation' -Filter blender.exe -Recurse -ErrorAction SilentlyContinue |
+            Sort-Object FullName -Descending | ForEach-Object { $_.FullName })
+    foreach ($candidate in $candidates) {
+        if ($candidate -and (Test-Path -LiteralPath $candidate)) { return $candidate }
+    }
+    throw 'Blender not found; pass -BlenderPath or set the BLENDER environment variable.'
+}

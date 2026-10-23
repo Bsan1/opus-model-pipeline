@@ -47,11 +47,13 @@ Unity (unity/) ── ModelImport fixes import settings, ModelImportTests compar
 | `tools/Compare.py`, `tools/blender/compare_render.py`, `tools/blender/references/` | **Measured comparison with a reference frame.** It solves the frame's camera from landmarks picked by hand and reports the alignment, each landmark's leave-one-out error and each segment's length ratio. It renders an overlay. Advisory unless aligned. |
 | `tools/Prefabs.ps1`, `unity/Editor/ModelPrefabs.cs` | **One prefab per model** inside the Unity project: `Assets/Opus/Prefabs/Models/<model>.prefab` (a Prefab Variant of the FBX with the game's materials), its materials saved in `Prefabs/Models/Materials/<model>/`. In the game project, every build and `Verify.ps1` run it, and `ModelImportTests.EveryModelHasAPrefab` checks it. |
 | `.claude/skills/model-plausibility/research/` | **What was learned about each kind of object before modelling it**: sources, the tricks adopted and rejected (skill step 2b). Read before searching again. |
-| `tools/tests/` | **Tests of the review, approval and comparison logic**, plain Python, no Blender: `py -3 -m unittest discover -s tools/tests`. |
+| `tools/tests/` | **Tests of the review, approval, comparison and art-style logic**, plain Python, no Blender: `py -3 -m unittest discover -s tools/tests`. |
 | `.claude/skills/model-plausibility/` | **How to plan and review a model** (a Claude Code skill; readable by anyone): principles, a guidance file per category (`machines`, `suspended`, `buildings`, `organic`), `lessons.md` (past mistakes as general rules) and `review.md` (the reviewer's instructions and output format). |
 | `tools/blender/reviews/`, `tools/blender/approvals.json` | **Decision records:** what a reviewer found, and which geometry the user approved. Keyed by the model's geometry hash. |
 | `tools/Assets.ps1` | **Searches and fetches licence-checked free assets** through the separate `free-assets` tool. Optional. |
-| `tools/_common.ps1` | **Shared PowerShell helpers**: the project root, the log folder and Unity paths. |
+| `tools/Style.py`, `tools/blender/style/style.json`, `tools/LookDev.ps1`, `tools/blender/lookdev.py`, `.claude/skills/art-style/` | **The art style (work in progress: read `docs/art-style-handoff.md` first).** Rules with checks, model gates (colours per hue, finish by kind, triangle budgets, chamfers) in `Verify.ps1`, a deterministic look-dev scene, a one-page brief per asset and a generated art bible. The image measurements do not yet drive the gates; the handoff lists what is wrong and what is left. |
+| `docs/art-style-handoff.md`, `reports/`, `research_notes/` | **The art-style handoff and its research**: the research report on defining and enforcing a game art style (Turkish), its notes (English), and an honest account of the current state. |
+| `tools/_common.ps1` | **Shared PowerShell helpers**: the project root, the log folder, Unity and Blender paths. |
 | `unity/` | **The Unity side**, kept for reference (it compiles only inside the game project). `ModelImport.cs` holds the import settings, `ModelLibrary.cs` and `SurfaceLibrary.cs` build the game materials, and `ModelImportTests.cs` checks each model against its spec. |
 
 ## Requirements
@@ -291,6 +293,7 @@ Sources can be a video, an image, a 3D model, a text description or web research
 - **Reference frames** (`docs/reference/*.png`): these are crops of a copyrighted game trailer. The generators still name them, and the contact sheet shows an empty tile where a reference crop would go.
 - **The Unity game project:** scenes, shaders, game scripts, the scenario screenshots, and `Test.ps1`, `Build.ps1` and `Shots.ps1`.
 - **Build outputs:** `Assets/`, `Builds/` and `Logs/` are created by the first build.
+- **The art bible and the style board** (`Builds/Style/art_bible.html`, `style_board.png`): they embed the reference frames. `Style.py bible` and `Style.py extract` write them again from your own images.
 
 ## Assets and licences
 

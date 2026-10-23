@@ -227,8 +227,25 @@ while ($pending.Count -gt 0 -or $running.Count -gt 0) {
     }
 }
 
+# Style: every model's base colours inside the art style (tools/Style.py, tools/blender/style/style.json; skill art-style)
+if (Test-Path -LiteralPath (Join-Path $blenderDir 'style\style.json')) {
+    $log = Join-Path $LogRoot 'verify-style.log'
+    $previous = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    & py -3 (Join-Path $PSScriptRoot 'Style.py') report *> $log
+    $code = $LASTEXITCODE
+    $ErrorActionPreference = $previous
+    $total = @(Select-String -LiteralPath $log -Pattern '^\S+\s+(ok|OUTSIDE)\s').Count
+    $outside = @(Select-String -LiteralPath $log -Pattern '^\S+\s+OUTSIDE\s' | ForEach-Object { ($_.Line -split '\s+')[0] })
+    $warned = @(Select-String -LiteralPath $log -Pattern '^\s+warning:').Count
+    $note = if ($warned) { "; $warned warning(s) from rules that only report (Logs\verify-style.log)" } else { '' }
+    if ($code -eq 0) { Write-Host "Style: $total/$total inside the style$note" }
+    else { Write-Host "Style: outside: $($outside -join ', ') (Logs\verify-style.log)"; $failed += 'style' }
+}
+
 # Tool tests (review and approval integrity, no Blender): when the review tool or its tests changed
-$toolsHash = Get-InputsHash @((Join-Path $PSScriptRoot 'Review.py'), (Join-Path $PSScriptRoot 'Compare.py'), (Join-Path $PSScriptRoot 'tests'))
+$toolsHash = Get-InputsHash @((Join-Path $PSScriptRoot 'Review.py'), (Join-Path $PSScriptRoot 'Compare.py'),
+    (Join-Path $PSScriptRoot 'Style.py'), (Join-Path $PSScriptRoot 'tests'))
 if ($state['_tools'] -ne $toolsHash) {
     $log = Join-Path $LogRoot 'verify-tooltests.log'
     $previous = $ErrorActionPreference
@@ -333,6 +350,28 @@ elseif (-not $NoUnity -and $failed.Count -eq 0) {
             }
         }
     }
+}
+# Game shots against the reference frames they recreate (Style.py shots, style.json in_game.pairs): warn only, because a
+# difference here comes from the game's light and post-processing, not from one asset; when a shot or the style changed
+$styleFile = Join-Path $blenderDir 'style\style.json'
+$pairShots = @()
+if (Test-Path -LiteralPath $styleFile) {
+    $pairShots = @((Get-Content -LiteralPath $styleFile -Raw -Encoding UTF8 | ConvertFrom-Json).in_game.pairs |
+        ForEach-Object { Join-Path $ProjectRoot $_.game } | Where-Object { Test-Path -LiteralPath $_ })
+}
+if ($pairShots.Count) {
+    $shotsHash = Get-InputsHash (@($styleFile, (Join-Path $PSScriptRoot 'Style.py')) + $pairShots)
+    if ($state['_shots'] -ne $shotsHash) {
+        $log = Join-Path $LogRoot 'verify-shots.log'
+        $previous = $ErrorActionPreference
+        $ErrorActionPreference = 'Continue'
+        & py -3 (Join-Path $PSScriptRoot 'Style.py') shots *> $log
+        $ErrorActionPreference = $previous
+        $line = Select-String -LiteralPath $log -Pattern '^game shots: (.*)$' | Select-Object -First 1
+        if ($line) { Write-Host "Game shots: $($line.Matches[0].Groups[1].Value) (Logs\verify-shots.log)"; $state['_shots'] = $shotsHash; Save-State }
+        else { Write-Host 'Game shots: not measured (Logs\verify-shots.log)' }
+    }
+    else { Write-Host 'Game shots: unchanged' }
 }
 # Technical success is not approval: one line on what still waits for a review or for the user
 # (approved with a warning - an open serious finding, a critical feature failing or unverified - is not counted as clean)

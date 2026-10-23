@@ -111,6 +111,82 @@ class RecordTests(Project):
         self.assertEqual(sorted(manifest["files"]), ["brief.md", "sheet.png"])
 
 
+class StyleFindingTests(Project):
+    """A "style:" finding must say where: a pack image and the place in it (the research report, step 9)."""
+
+    FINDING = {"severity": "low", "confidence": "high", "component": "Base", "problem": "style: the paint is mirror-glossy",
+               "evidence": "sheet", "fix": "satin"}
+
+    def test_a_style_finding_without_a_location_is_refused(self):
+        manifest = R.pack("m", "final")
+        with self.assertRaises(SystemExit):
+            R.record("m", self.findings(manifest, [self.FINDING]), "test")
+        with self.assertRaises(SystemExit):   # a location that is not in the pack
+            R.record("m", self.findings(manifest, [dict(self.FINDING, location="view_top.png: the lid")]), "test")
+
+    def test_the_pack_carries_the_heroes_and_the_near_misses(self):
+        # 24 October 2026: the hero's view was looked up under the wrong key of views.json and heroes.png never appeared
+        hero = os.path.join(self.root, "Builds", "Models", "h")
+        os.makedirs(hero)
+        R.write_json(os.path.join(hero, "views.json"), {"views": [{"type": "render", "file": "front.png"}]})
+        Image.new("RGB", (40, 30), (90, 120, 80)).save(os.path.join(hero, "front.png"))
+        lookdev = os.path.join(self.root, "Builds", "Style", "lookdev")
+        os.makedirs(lookdev)
+        for name in ("style", "glossy_plastic"):
+            Image.new("RGB", (40, 30), (120, 90, 80)).save(os.path.join(lookdev, f"near_h_{name}.png"))
+        R.write_json(os.path.join(self.root, "tools", "blender", "style", "style.json"),
+                     {"heroes": ["h", "m"], "lookdev": {"near_miss_models": ["h"]},
+                      "near_misses": [{"variant": "glossy_plastic", "rule": "surfaces.painted"}]})
+        manifest = R.pack("m", "final")
+        self.assertIn("heroes.png", manifest["files"])
+        self.assertIn("near_misses.png", manifest["files"])
+
+    def test_a_located_style_finding_is_recorded(self):
+        manifest = R.pack("m", "final")
+        review = R.record("m", self.findings(manifest, [dict(self.FINDING, location="sheet.png: the base, front view")]), "test")
+        self.assertEqual(len(review["findings"]), 1)
+
+
+class DecisionTests(Project):
+    """One decision per round, with a located note; after MAX_ROUNDS revisions the decision goes to the user."""
+
+    def setUp(self):
+        super().setUp()
+        folder = os.path.join(self.root, "Builds", "Models", "m_preview")
+        os.makedirs(folder, exist_ok=True)
+        Image.new("RGB", (8, 8)).save(os.path.join(folder, "front.png"))
+
+    def test_a_note_without_a_location_is_refused(self):
+        for note in ("too thin", "nowhere: the lever is too thin", "front:"):
+            with self.assertRaises(SystemExit):
+                R.decide("m", "revise", "blockout", note, "test")
+        self.assertEqual(R.decisions("m"), [])
+
+    def test_rounds_are_counted_and_the_last_goes_to_the_user(self):
+        for _ in range(R.MAX_ROUNDS):
+            R.decide("m", "revise", "blockout", "front: the lever is too thin", "test")
+        with self.assertRaises(SystemExit):
+            R.decide("m", "revise", "blockout", "front: still too thin", "test")
+        entry = R.decide("m", "escalate", "blockout", "front: thin or thick lever, the user decides", "test")
+        self.assertEqual(entry["round"], R.MAX_ROUNDS + 1)
+        state = R.state("m")
+        self.assertIn("blockout escalate in round 4", state["text"])
+        self.assertIn("blockout escalated: waiting for the user", state["warnings"])
+        R.decide("m", "approve", "blockout", "", "user")
+        self.assertNotIn("blockout escalated: waiting for the user", R.state("m")["warnings"])
+
+
+class TiledTextureTests(Project):
+    def test_a_tiled_model_finds_its_tiling_sets(self):
+        folder = os.path.join(self.root, "Assets", "Opus", "Resources", "Models", "Tiling")
+        os.makedirs(folder)
+        R.write_json(os.path.join(folder, "tiling.json"),   # the file's real shape: lists
+                     {"materials": [{"name": "lap_siding", "set": "wood_siding"}],
+                      "models": [{"model": "m", "slots": [{"slot": "Siding_A6B0B8_matte", "material": "lap_siding"}]}]})
+        files = R.texture_files("m", {"tiled": True})
+        self.assertEqual([os.path.basename(f) for f in files], ["wood_siding_normal.png", "wood_siding_tone.png"])
+
+
 class CarryTests(Project):
     def preview_review(self):
         manifest = R.pack("m", "preview")

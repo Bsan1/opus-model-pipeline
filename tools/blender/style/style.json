@@ -1,0 +1,1645 @@
+{
+  "schema": 2,
+  "style_version": "1.1",
+  "name": "Copycat Opus: the yard of the trailer",
+  "summary": "Stylised, soft and warm: simple readable shapes with gently chamfered edges, painted-looking surfaces with real grain under the paint, a pastel hazy light with a lavender sky; nothing glossy that is not really glossy, nothing plastic-looking.",
+  "stylisation": {
+    "anchor": "the trailer's yard: a cosy, stylised garden game, simple painted forms under a soft pastel light",
+    "tie_breaker": "readability from the game camera beats realism; the source frames beat taste",
+    "modelled_vs_painted": "a feature smaller than the detail floor of its class is painted into the texture or left out",
+    "detail_floor_m": {
+      "held_tool": 0.003,
+      "prop": 0.01,
+      "building": 0.02
+    },
+    "chamfer_mm": {
+      "hard_parts": [
+        1.0,
+        2.5
+      ]
+    },
+    "budgets_tris": {
+      "held_tool": [
+        5000,
+        15000
+      ],
+      "machine": [
+        15000,
+        30000
+      ],
+      "prop": [
+        500,
+        26000
+      ],
+      "building": [
+        20000,
+        110000
+      ],
+      "tree": [
+        40000,
+        80000
+      ],
+      "suspended": [
+        20000,
+        80000
+      ]
+    },
+    "chamfer_applies_to": [
+      "held_tool",
+      "machine"
+    ]
+  },
+  "classes": {
+    "held_tool": [
+      "hose_nozzle",
+      "trimmer"
+    ],
+    "machine": [
+      "mower",
+      "wheel"
+    ],
+    "building": [
+      "house",
+      "shed"
+    ],
+    "tree": [
+      "tree"
+    ],
+    "suspended": [
+      "tire_swing"
+    ]
+  },
+  "finish_by_kind": {
+    "Plastic": [
+      "matte",
+      "satin",
+      "glossy"
+    ],
+    "Rubber": [
+      "matte"
+    ],
+    "Metal": [
+      "satin",
+      "glossy",
+      "metallic"
+    ],
+    "Paint": [
+      "matte",
+      "satin",
+      "glossy"
+    ],
+    "Siding": [
+      "matte"
+    ],
+    "Planks": [
+      "matte",
+      "satin"
+    ],
+    "Shingles": [
+      "matte"
+    ],
+    "Concrete": [
+      "matte"
+    ],
+    "Stone": [
+      "matte"
+    ],
+    "Brick": [
+      "matte"
+    ],
+    "Bark": [
+      "matte"
+    ],
+    "Foliage": [
+      "matte",
+      "satin"
+    ],
+    "Glass": [
+      "glossy"
+    ],
+    "Fabric": [
+      "matte"
+    ],
+    "Soil": [
+      "matte"
+    ]
+  },
+  "heroes": [
+    "shed",
+    "mower"
+  ],
+  "exempt": {
+    "calibration": "a technical colour chart for checking the camera and the light, not part of the look"
+  },
+  "rules": [
+    {
+      "id": "shape.stylised",
+      "kind": "invariant",
+      "check": "review",
+      "text": "simple stylised shapes over scanned realism; the silhouette reads from the game camera"
+    },
+    {
+      "id": "shape.one_shell",
+      "kind": "invariant",
+      "check": "qc.construction + review",
+      "text": "one shell per real piece, no stacked primitives; revolved parts are one profile with details pushed out of it"
+    },
+    {
+      "id": "shape.source_proportions",
+      "kind": "invariant",
+      "check": "Compare.py + review",
+      "text": "proportions follow the source even when not realistic; detail at the source's scale (small tread blocks, not toy lugs)"
+    },
+    {
+      "id": "edges.chamfer",
+      "kind": "tunable",
+      "check": "Style.py report (bevels_mm against chamfer_mm) + review",
+      "text": "hard parts: a single-segment chamfer within stylisation.chamfer_mm, with weighted normals, so edges catch the light softly",
+      "enforce": "warn"
+    },
+    {
+      "id": "edges.soft_shells",
+      "kind": "tunable",
+      "check": "review",
+      "text": "soft moulded shells: plain smoothing, no area weighting"
+    },
+    {
+      "id": "surfaces.painted",
+      "kind": "invariant",
+      "check": "review (near miss: glossy_plastic)",
+      "text": "a painted look, never flat plastic: a real CC0 grain or tone under the paint, a little tone variation per piece (4-8 %)"
+    },
+    {
+      "id": "surfaces.materials_differ",
+      "kind": "invariant",
+      "check": "MATERIALS registry (opus_model) + ModelImportTests",
+      "text": "different materials look different; the same paint in another colour is the same material"
+    },
+    {
+      "id": "surfaces.grime",
+      "kind": "tunable",
+      "check": "review",
+      "text": "grime only on concrete, brick and stone"
+    },
+    {
+      "id": "surfaces.no_baked_light",
+      "kind": "invariant",
+      "check": "review (near miss: baked_shadow)",
+      "text": "no lighting or shadows painted into textures"
+    },
+    {
+      "id": "finish.real_material",
+      "kind": "invariant",
+      "check": "Style.py report (finish_by_kind) + review",
+      "text": "the finish comes from the real material: black plastic matte, enamelled metal glossy, powder coat satin, chrome metallic, rubber and wood matte"
+    },
+    {
+      "id": "colour.albedo_gamut",
+      "kind": "invariant",
+      "check": "Style.py report",
+      "text": "base colours inside measured.albedo; outside only with \"style exception: <why>\" in the surface note"
+    },
+    {
+      "id": "colour.clean_frames",
+      "kind": "tunable",
+      "check": "review",
+      "text": "colours are sampled from clean frames; the lavender sky light tints greys, so base colours are shifted against it"
+    },
+    {
+      "id": "colour.atmosphere",
+      "kind": "invariant",
+      "check": "Style.py shots (game shot against its reference) + look",
+      "text": "a pastel, hazy atmosphere; mown grass lighter and brighter than unmown; no saturated sharp borders",
+      "enforce": "warn"
+    },
+    {
+      "id": "detail.guesses_simple",
+      "kind": "tunable",
+      "check": "plan (source guess) + review",
+      "text": "what the camera cannot see stays simple and is marked as a guess"
+    },
+    {
+      "id": "detail.floor",
+      "kind": "tunable",
+      "check": "review",
+      "text": "nothing modelled below stylisation.detail_floor_m for its class"
+    },
+    {
+      "id": "detail.budgets",
+      "kind": "tunable",
+      "check": "Style.py report (stylisation.budgets_tris)",
+      "text": "triangles within stylisation.budgets_tris for the asset's class",
+      "enforce": "warn"
+    }
+  ],
+  "lookdev": {
+    "game_sky": "#A79FBF",
+    "game_sun": "#FFE8C8",
+    "sun_strength": 3.5,
+    "together": [
+      [
+        "tree",
+        "tire_swing"
+      ]
+    ],
+    "small_row_below_m": 1.5,
+    "near_miss_models": [
+      "shed",
+      "tree"
+    ]
+  },
+  "near_misses": [
+    {
+      "variant": "glossy_plastic",
+      "rule": "surfaces.painted",
+      "what": "flat colour and a mirror finish: it reads as cheap plastic, not as a painted, grained surface"
+    },
+    {
+      "variant": "oversaturated",
+      "rule": "colour.albedo_gamut",
+      "what": "the base colours pushed past the palette's chroma: loud against the hazy pastel frames"
+    },
+    {
+      "variant": "baked_shadow",
+      "rule": "surfaces.no_baked_light",
+      "what": "a shadow gradient painted into the colour: it stays dark whatever the light does"
+    },
+    {
+      "variant": "black_shadows",
+      "rule": "colour.atmosphere",
+      "what": "no sky light: neutral black shadows instead of the lavender-tinted ones of the source"
+    }
+  ],
+  "in_game": {
+    "pairs": [
+      {
+        "label": "Shed",
+        "reference": "docs/reference/28_shed_front.png",
+        "game": "Builds/Shots/u16_showroom/v_shed_video_angle.png"
+      },
+      {
+        "label": "House",
+        "reference": "docs/reference/29_house_garden_facade.png",
+        "game": "Builds/Shots/u16_showroom/v_house_video_angle.png"
+      },
+      {
+        "label": "Tire swing",
+        "reference": "docs/reference/27_tree_swing.png",
+        "game": "Builds/Shots/u16_showroom/v_swing_video_angle.png"
+      },
+      {
+        "label": "Mower (first person)",
+        "reference": "docs/reference/22_mower_close.png",
+        "game": "Builds/Shots/u16_showroom/v_fps_mower.png"
+      },
+      {
+        "label": "Hose nozzle (first person)",
+        "reference": "docs/reference/24_hose_nozzle.png",
+        "game": "Builds/Shots/u16_showroom/v_fps_hose.png"
+      },
+      {
+        "label": "Trimmer (first person)",
+        "reference": "docs/reference/26_trimmer_body.png",
+        "game": "Builds/Shots/u16_showroom/v_fps_trimmer.png"
+      }
+    ]
+  },
+  "notes": {
+    "vision": "The yard of the trailer is a place you want to spend a summer in: warm, slightly worn, never busy. Every object is a little simpler and softer than the real one, but built the way the real one is built, so it reads instantly and still feels true. When two goals fight, the game camera decides: if it does not read from where the player stands, it is wrong however accurate it is.",
+    "value": "Most of every picture lives in the middle values, with a light sky and light walls on top and only small dark accents (iron, rubber, tyre, deep shadow under eaves). Keep big shapes in one value group each; a model that breaks into many small light-dark patches reads as noise from the game camera.",
+    "colour": "Colours are soft and warm, a little greyed, with the haze of a summer afternoon. Saturation is spent on a few accents only: the red mower, the green and yellow nozzle. Base colours are painted a touch darker and more saturated than they look on screen, because the lavender sky light and the haze lift and soften them.",
+    "hue": "The yard is green and yellow-green, the buildings grey-blue and white, the accents red. New colours join one of these families; a colour from outside them (a neon, a cold cyan) needs a reason.",
+    "light": "Light is warm and shadows are cool and coloured, never neutral black: the lavender sky fills every shadow. Nothing is painted into a texture that the light should do: no baked highlights, no painted shadows.",
+    "detail": "Large calm surfaces with detail where it explains the object: board lines, a hinge, a tread block. Below the detail floor a feature is painted or left out. The spectrum of the sources is calmer than a photograph (a steeper Fourier slope), so a model with fine noise everywhere is off-style even if each piece is right.",
+    "shape": "Simple, slightly rounded, readable forms; one solid piece for one real piece. A silhouette at 32 px must still say what the object is.",
+    "materials": "The finish comes from what the thing is made of: matte for wood, rubber and rough plastic, satin for paint and powder coat, glossy only for enamel and glass. A real grain lies under the paint; every board and shingle is a touch different in tone.",
+    "classes": "Each class has its own detail floor and budget: what a hand holds in first person is seen up close and gets its small parts; a building is seen from metres away and gets its boards, not its nails.",
+    "do_dont": "Each pair shows the style beside a near miss of the same model: the mistakes a generator makes easily. Every near miss names the rule it breaks and the check that catches it; the numbers below each one say what the measured checks see, and where only the review can see it, the page says so.",
+    "in_game": "The trailer's frame beside the same view in the game: the final test of the style is here, under the game's own light and shader."
+  },
+  "measured": {
+    "settings": {
+      "colour": "CIELAB D65 (gamut, value), OKLab (hue)",
+      "detail_resize": "Pillow BICUBIC, 256 px long side"
+    },
+    "lit": {
+      "sources": [
+        "docs/reference/24_hose_nozzle.png crop [490, 220, 200, 260]",
+        "docs/reference/07_hose_dry_spot_dog.png crop [470, 228, 260, 250]",
+        "docs/reference/29_house_garden_facade.png crop [360, 0, 488, 250]",
+        "docs/reference/30_house_deck.png crop [150, 0, 560, 160]",
+        "docs/reference/31_house_side.png crop [200, 0, 420, 260]",
+        "docs/reference/29_house_garden_facade.png crop [660, 110, 140, 100]",
+        "docs/reference/22_mower_close.png crop [300, 248, 260, 230]",
+        "docs/reference/23_mower_engine_top.png crop [325, 290, 200, 150]",
+        "docs/reference/28_shed_front.png crop [330, 20, 330, 240]",
+        "docs/reference/05_ivy_covered_shed.png crop [180, 30, 280, 250]",
+        "docs/reference/32_swing_close.png crop [255, 150, 260, 280]",
+        "docs/reference/27_tree_swing.png crop [330, 0, 420, 478]",
+        "docs/reference/27_tree_swing.png crop [0, 0, 300, 478]",
+        "docs/reference/26_trimmer_body.png crop [420, 110, 330, 240]",
+        "docs/reference/25_trimmer_head.png crop [200, 80, 420, 260]",
+        "docs/reference/21_mower_rear_wheel.png crop [425, 330, 170, 148]",
+        "docs/reference/21_mower_rear_wheel.png crop [290, 255, 300, 223]"
+      ],
+      "pixels": 102000,
+      "gamut": {
+        "lightness": [
+          10.4,
+          98.6
+        ],
+        "chroma_max": 73.3,
+        "chroma_median": 19.1
+      },
+      "palette": [
+        {
+          "hex": "#B6ADAF",
+          "lab": [
+            71.5,
+            3.5,
+            0.4
+          ],
+          "share": 0.208
+        },
+        {
+          "hex": "#A49E43",
+          "lab": [
+            63.9,
+            -9.9,
+            47.4
+          ],
+          "share": 0.116
+        },
+        {
+          "hex": "#93A640",
+          "lab": [
+            64.9,
+            -21.7,
+            49.5
+          ],
+          "share": 0.108
+        },
+        {
+          "hex": "#413E3E",
+          "lab": [
+            26.5,
+            1.6,
+            0.3
+          ],
+          "share": 0.094
+        },
+        {
+          "hex": "#86807C",
+          "lab": [
+            54.0,
+            1.7,
+            2.9
+          ],
+          "share": 0.072
+        },
+        {
+          "hex": "#4D3826",
+          "lab": [
+            25.6,
+            6.6,
+            15.4
+          ],
+          "share": 0.07
+        },
+        {
+          "hex": "#618241",
+          "lab": [
+            50.6,
+            -23.8,
+            31.4
+          ],
+          "share": 0.058
+        },
+        {
+          "hex": "#A2A781",
+          "lab": [
+            67.1,
+            -8.0,
+            18.7
+          ],
+          "share": 0.056
+        },
+        {
+          "hex": "#C2B845",
+          "lab": [
+            73.8,
+            -10.6,
+            57.6
+          ],
+          "share": 0.049
+        },
+        {
+          "hex": "#9891AB",
+          "lab": [
+            61.6,
+            7.7,
+            -12.6
+          ],
+          "share": 0.042
+        },
+        {
+          "hex": "#AE272D",
+          "lab": [
+            38.9,
+            53.4,
+            30.5
+          ],
+          "share": 0.041
+        },
+        {
+          "hex": "#9D7F58",
+          "lab": [
+            55.1,
+            6.1,
+            25.8
+          ],
+          "share": 0.031
+        },
+        {
+          "hex": "#F1EAD6",
+          "lab": [
+            92.6,
+            -0.8,
+            10.2
+          ],
+          "share": 0.027
+        },
+        {
+          "hex": "#7E1E21",
+          "lab": [
+            28.0,
+            40.8,
+            23.3
+          ],
+          "share": 0.015
+        },
+        {
+          "hex": "#AB4A45",
+          "lab": [
+            44.2,
+            39.5,
+            22.7
+          ],
+          "share": 0.012
+        },
+        {
+          "hex": "#541E66",
+          "lab": [
+            22.9,
+            36.7,
+            -31.2
+          ],
+          "share": 0.001
+        }
+      ],
+      "accents": [
+        {
+          "hex": "#C6B83B",
+          "lab": [
+            73.9,
+            -9.3,
+            62.0
+          ]
+        },
+        {
+          "hex": "#B7282F",
+          "lab": [
+            40.9,
+            56.2,
+            32.5
+          ]
+        },
+        {
+          "hex": "#99B237",
+          "lab": [
+            68.7,
+            -25.6,
+            57.1
+          ]
+        },
+        {
+          "hex": "#9E191D",
+          "lab": [
+            34.0,
+            52.3,
+            34.0
+          ]
+        },
+        {
+          "hex": "#59157D",
+          "lab": [
+            24.2,
+            46.9,
+            -44.1
+          ]
+        }
+      ],
+      "profile": {
+        "lightness_median": {
+          "median": 64.097,
+          "p25": 46.718,
+          "p75": 66.741,
+          "p10": 38.089,
+          "p90": 67.209
+        },
+        "lightness_p10": {
+          "median": 39.966,
+          "p25": 24.944,
+          "p75": 49.011,
+          "p10": 22.945,
+          "p90": 50.572
+        },
+        "lightness_p90": {
+          "median": 73.299,
+          "p25": 72.248,
+          "p75": 77.619,
+          "p10": 68.079,
+          "p90": 78.27
+        },
+        "contrast_rms": {
+          "median": 14.921,
+          "p25": 13.358,
+          "p75": 19.464,
+          "p10": 10.873,
+          "p90": 21.116
+        },
+        "notan_dark": {
+          "median": 0.072,
+          "p25": 0.04,
+          "p75": 0.257,
+          "p10": 0.027,
+          "p90": 0.418
+        },
+        "notan_mid": {
+          "median": 0.68,
+          "p25": 0.461,
+          "p75": 0.729,
+          "p10": 0.337,
+          "p90": 0.774
+        },
+        "notan_light": {
+          "median": 0.243,
+          "p25": 0.168,
+          "p75": 0.291,
+          "p10": 0.089,
+          "p90": 0.359
+        },
+        "chroma_median": {
+          "median": 20.224,
+          "p25": 9.871,
+          "p75": 47.185,
+          "p10": 6.547,
+          "p90": 50.501
+        },
+        "chroma_p90": {
+          "median": 53.461,
+          "p25": 45.971,
+          "p75": 60.319,
+          "p10": 26.64,
+          "p90": 62.803
+        },
+        "chroma_dark": {
+          "median": 14.29,
+          "p25": 8.727,
+          "p75": 21.556,
+          "p10": 5.767,
+          "p90": 23.959
+        },
+        "chroma_mid": {
+          "median": 31.407,
+          "p25": 22.337,
+          "p75": 42.293,
+          "p10": 12.731,
+          "p90": 47.743
+        },
+        "chroma_light": {
+          "median": 17.584,
+          "p25": 8.963,
+          "p75": 33.611,
+          "p10": 6.841,
+          "p90": 45.016
+        },
+        "shadow_shift_a": {
+          "median": -4.693,
+          "p25": -12.475,
+          "p75": 2.568,
+          "p10": -23.293,
+          "p90": 11.932
+        },
+        "shadow_shift_b": {
+          "median": 0.526,
+          "p25": -5.479,
+          "p75": 28.812,
+          "p10": -7.56,
+          "p90": 37.825
+        },
+        "fourier_slope": {
+          "median": 1.435,
+          "p25": 1.239,
+          "p75": 1.526,
+          "p10": 1.149,
+          "p90": 1.598
+        },
+        "edge_density": {
+          "median": 0.085,
+          "p25": 0.059,
+          "p75": 0.109,
+          "p10": 0.053,
+          "p90": 0.144
+        },
+        "busyness": {
+          "median": 2.848,
+          "p25": 2.28,
+          "p75": 3.54,
+          "p10": 2.123,
+          "p90": 3.978
+        },
+        "hue_families": {
+          "red": 0.024,
+          "orange": 0.157,
+          "yellow": 0.07,
+          "lime": 0.183,
+          "green": 0.441,
+          "teal": 0.022,
+          "cyan": 0.002,
+          "azure": 0.001,
+          "blue": 0.002,
+          "violet": 0.013,
+          "purple": 0.032,
+          "pink": 0.053
+        },
+        "harmony": {
+          "T": 10,
+          "X": 7
+        }
+      },
+      "per_image": [
+        {
+          "lightness_median": 64.162,
+          "lightness_p10": 43.405,
+          "lightness_p90": 74.411,
+          "contrast_rms": 14.921,
+          "notan_dark": 0.046,
+          "notan_mid": 0.811,
+          "notan_light": 0.143,
+          "chroma_median": 47.185,
+          "chroma_p90": 55.715,
+          "chroma_dark": 8.727,
+          "chroma_mid": 47.709,
+          "chroma_light": 30.39,
+          "shadow_shift_a": 12.575,
+          "shadow_shift_b": 10.134,
+          "shadow_colour": "#416537",
+          "light_colour": "#C2C282",
+          "fourier_slope": 1.435,
+          "edge_density": 0.07,
+          "busyness": 2.848,
+          "hue_families": [
+            0.0001,
+            0.0003,
+            0.0019,
+            0.2033,
+            0.689,
+            0.0955,
+            0.0019,
+            0.0025,
+            0.0043,
+            0.0004,
+            0.0004,
+            0.0004
+          ],
+          "harmony": {
+            "template": "T",
+            "angle": 120,
+            "fit_deg": 0.15
+          },
+          "source": "docs/reference/24_hose_nozzle.png crop [490, 220, 200, 260]"
+        },
+        {
+          "lightness_median": 64.097,
+          "lightness_p10": 49.373,
+          "lightness_p90": 79.478,
+          "contrast_rms": 13.358,
+          "notan_dark": 0.028,
+          "notan_mid": 0.729,
+          "notan_light": 0.243,
+          "chroma_median": 47.589,
+          "chroma_p90": 54.816,
+          "chroma_dark": 10.196,
+          "chroma_mid": 47.794,
+          "chroma_light": 27.892,
+          "shadow_shift_a": 17.398,
+          "shadow_shift_b": -6.926,
+          "shadow_colour": "#5F793D",
+          "light_colour": "#D7CDA2",
+          "fourier_slope": 1.465,
+          "edge_density": 0.06,
+          "busyness": 2.304,
+          "hue_families": [
+            0.0003,
+            0.0009,
+            0.0017,
+            0.2201,
+            0.6943,
+            0.0753,
+            0.0004,
+            0.0011,
+            0.0047,
+            0.0005,
+            0.0002,
+            0.0005
+          ],
+          "harmony": {
+            "template": "T",
+            "angle": 111,
+            "fit_deg": 0.1
+          },
+          "source": "docs/reference/07_hose_dry_spot_dog.png crop [470, 228, 260, 250]"
+        },
+        {
+          "lightness_median": 65.975,
+          "lightness_p10": 52.436,
+          "lightness_p90": 78.123,
+          "contrast_rms": 12.486,
+          "notan_dark": 0.021,
+          "notan_mid": 0.706,
+          "notan_light": 0.273,
+          "chroma_median": 6.753,
+          "chroma_p90": 33.182,
+          "chroma_dark": 16.168,
+          "chroma_mid": 13.69,
+          "chroma_light": 7.573,
+          "shadow_shift_a": -5.875,
+          "shadow_shift_b": -2.31,
+          "shadow_colour": "#826F65",
+          "light_colour": "#CDC8BE",
+          "fourier_slope": 1.222,
+          "edge_density": 0.156,
+          "busyness": 4.115,
+          "hue_families": [
+            0.0589,
+            0.0971,
+            0.1914,
+            0.166,
+            0.2031,
+            0.03,
+            0.0068,
+            0.0007,
+            0.0007,
+            0.0643,
+            0.1035,
+            0.0776
+          ],
+          "harmony": {
+            "template": "X",
+            "angle": 51,
+            "fit_deg": 0.85
+          },
+          "source": "docs/reference/29_house_garden_facade.png crop [360, 0, 488, 250]"
+        },
+        {
+          "lightness_median": 66.741,
+          "lightness_p10": 50.841,
+          "lightness_p90": 73.249,
+          "contrast_rms": 13.821,
+          "notan_dark": 0.054,
+          "notan_mid": 0.717,
+          "notan_light": 0.229,
+          "chroma_median": 20.224,
+          "chroma_p90": 53.461,
+          "chroma_dark": 24.453,
+          "chroma_mid": 31.02,
+          "chroma_light": 17.584,
+          "shadow_shift_a": -4.693,
+          "shadow_shift_b": 6.518,
+          "shadow_colour": "#726657",
+          "light_colour": "#C4BD9E",
+          "fourier_slope": 0.968,
+          "edge_density": 0.172,
+          "busyness": 4.395,
+          "hue_families": [
+            0.014,
+            0.039,
+            0.0456,
+            0.2626,
+            0.5772,
+            0.0006,
+            0.0006,
+            0.0011,
+            0.0003,
+            0.0004,
+            0.0256,
+            0.0329
+          ],
+          "harmony": {
+            "template": "T",
+            "angle": 3,
+            "fit_deg": 0.08
+          },
+          "source": "docs/reference/30_house_deck.png crop [150, 0, 560, 160]"
+        },
+        {
+          "lightness_median": 63.442,
+          "lightness_p10": 48.783,
+          "lightness_p90": 71.354,
+          "contrast_rms": 10.707,
+          "notan_dark": 0.025,
+          "notan_mid": 0.791,
+          "notan_light": 0.184,
+          "chroma_median": 10.716,
+          "chroma_p90": 45.971,
+          "chroma_dark": 21.556,
+          "chroma_mid": 18.353,
+          "chroma_light": 8.435,
+          "shadow_shift_a": -2.638,
+          "shadow_shift_b": -9.428,
+          "shadow_colour": "#796856",
+          "light_colour": "#B9B3AE",
+          "fourier_slope": 1.051,
+          "edge_density": 0.109,
+          "busyness": 3.225,
+          "hue_families": [
+            0.0344,
+            0.0551,
+            0.1474,
+            0.2983,
+            0.2112,
+            0.0306,
+            0.005,
+            0.0009,
+            0.0006,
+            0.0802,
+            0.095,
+            0.0412
+          ],
+          "harmony": {
+            "template": "X",
+            "angle": 51,
+            "fit_deg": 0.57
+          },
+          "source": "docs/reference/31_house_side.png crop [200, 0, 420, 260]"
+        },
+        {
+          "lightness_median": 66.869,
+          "lightness_p10": 50.393,
+          "lightness_p90": 71.245,
+          "contrast_rms": 10.658,
+          "notan_dark": 0.029,
+          "notan_mid": 0.68,
+          "notan_light": 0.291,
+          "chroma_median": 6.237,
+          "chroma_p90": 16.826,
+          "chroma_dark": 7.021,
+          "chroma_mid": 8.059,
+          "chroma_light": 5.31,
+          "shadow_shift_a": 2.101,
+          "shadow_shift_b": -5.479,
+          "shadow_colour": "#726C66",
+          "light_colour": "#B7B0B3",
+          "fourier_slope": 1.64,
+          "edge_density": 0.056,
+          "busyness": 2.151,
+          "hue_families": [
+            0.1223,
+            0.1666,
+            0.0328,
+            0.0393,
+            0.1075,
+            0.007,
+            0.0058,
+            0.0014,
+            0.0,
+            0.0001,
+            0.1686,
+            0.3485
+          ],
+          "harmony": {
+            "template": "X",
+            "angle": 57,
+            "fit_deg": 1.29
+          },
+          "source": "docs/reference/29_house_garden_facade.png crop [660, 110, 140, 100]"
+        },
+        {
+          "lightness_median": 46.298,
+          "lightness_p10": 24.944,
+          "lightness_p90": 77.14,
+          "contrast_rms": 21.401,
+          "notan_dark": 0.288,
+          "notan_mid": 0.328,
+          "notan_light": 0.384,
+          "chroma_median": 55.164,
+          "chroma_p90": 62.563,
+          "chroma_dark": 23.63,
+          "chroma_mid": 44.771,
+          "chroma_light": 59.726,
+          "shadow_shift_a": -26.644,
+          "shadow_shift_b": 50.937,
+          "shadow_colour": "#4F322E",
+          "light_colour": "#C7C44C",
+          "fourier_slope": 1.213,
+          "edge_density": 0.086,
+          "busyness": 2.919,
+          "hue_families": [
+            0.0141,
+            0.3603,
+            0.0098,
+            0.0529,
+            0.5529,
+            0.0002,
+            0.0002,
+            0.0003,
+            0.0002,
+            0.0006,
+            0.0044,
+            0.004
+          ],
+          "harmony": {
+            "template": "X",
+            "angle": 33,
+            "fit_deg": 0.02
+          },
+          "source": "docs/reference/22_mower_close.png crop [300, 248, 260, 230]"
+        },
+        {
+          "lightness_median": 38.034,
+          "lightness_p10": 24.398,
+          "lightness_p90": 73.299,
+          "contrast_rms": 20.926,
+          "notan_dark": 0.39,
+          "notan_mid": 0.461,
+          "notan_light": 0.149,
+          "chroma_median": 9.871,
+          "chroma_p90": 64.33,
+          "chroma_dark": 9.231,
+          "chroma_mid": 38.138,
+          "chroma_light": 33.611,
+          "shadow_shift_a": -12.475,
+          "shadow_shift_b": 33.305,
+          "shadow_colour": "#3A3535",
+          "light_colour": "#C6C682",
+          "fourier_slope": 1.715,
+          "edge_density": 0.05,
+          "busyness": 2.231,
+          "hue_families": [
+            0.0165,
+            0.5787,
+            0.0135,
+            0.1156,
+            0.2657,
+            0.0008,
+            0.0003,
+            0.0006,
+            0.0001,
+            0.0005,
+            0.0044,
+            0.0031
+          ],
+          "harmony": {
+            "template": "T",
+            "angle": 57,
+            "fit_deg": 0.01
+          },
+          "source": "docs/reference/23_mower_engine_top.png crop [325, 290, 200, 150]"
+        },
+        {
+          "lightness_median": 67.139,
+          "lightness_p10": 49.011,
+          "lightness_p90": 72.248,
+          "contrast_rms": 10.983,
+          "notan_dark": 0.04,
+          "notan_mid": 0.713,
+          "notan_light": 0.247,
+          "chroma_median": 9.553,
+          "chroma_p90": 15.775,
+          "chroma_dark": 5.885,
+          "chroma_mid": 11.292,
+          "chroma_light": 9.698,
+          "shadow_shift_a": 4.52,
+          "shadow_shift_b": -0.291,
+          "shadow_colour": "#6A6B61",
+          "light_colour": "#BBB1A9",
+          "fourier_slope": 1.246,
+          "edge_density": 0.085,
+          "busyness": 2.846,
+          "hue_families": [
+            0.061,
+            0.0505,
+            0.0323,
+            0.2181,
+            0.3633,
+            0.0449,
+            0.0026,
+            0.0037,
+            0.0075,
+            0.0055,
+            0.0445,
+            0.1661
+          ],
+          "harmony": {
+            "template": "T",
+            "angle": 36,
+            "fit_deg": 0.13
+          },
+          "source": "docs/reference/28_shed_front.png crop [330, 20, 330, 240]"
+        },
+        {
+          "lightness_median": 71.307,
+          "lightness_p10": 39.966,
+          "lightness_p90": 78.491,
+          "contrast_rms": 15.178,
+          "notan_dark": 0.072,
+          "notan_mid": 0.341,
+          "notan_light": 0.587,
+          "chroma_median": 5.959,
+          "chroma_p90": 63.162,
+          "chroma_dark": 5.59,
+          "chroma_mid": 24.809,
+          "chroma_light": 13.507,
+          "shadow_shift_a": 2.568,
+          "shadow_shift_b": 0.079,
+          "shadow_colour": "#5E5B59",
+          "light_colour": "#CAC0C0",
+          "fourier_slope": 1.466,
+          "edge_density": 0.059,
+          "busyness": 2.08,
+          "hue_families": [
+            0.0448,
+            0.0431,
+            0.0317,
+            0.4842,
+            0.2404,
+            0.0024,
+            0.0032,
+            0.0041,
+            0.0063,
+            0.0023,
+            0.0285,
+            0.1089
+          ],
+          "harmony": {
+            "template": "X",
+            "angle": 60,
+            "fit_deg": 0.23
+          },
+          "source": "docs/reference/05_ivy_covered_shed.png crop [180, 30, 280, 250]"
+        },
+        {
+          "lightness_median": 38.126,
+          "lightness_p10": 24.682,
+          "lightness_p90": 72.734,
+          "contrast_rms": 20.495,
+          "notan_dark": 0.461,
+          "notan_mid": 0.345,
+          "notan_light": 0.194,
+          "chroma_median": 10.598,
+          "chroma_p90": 34.345,
+          "chroma_dark": 11.39,
+          "chroma_mid": 22.337,
+          "chroma_light": 8.963,
+          "shadow_shift_a": -1.319,
+          "shadow_shift_b": -6.744,
+          "shadow_colour": "#413426",
+          "light_colour": "#BEB5AF",
+          "fourier_slope": 1.524,
+          "edge_density": 0.098,
+          "busyness": 3.004,
+          "hue_families": [
+            0.0033,
+            0.0397,
+            0.1531,
+            0.3712,
+            0.3761,
+            0.0056,
+            0.0068,
+            0.0011,
+            0.0001,
+            0.0005,
+            0.0026,
+            0.0398
+          ],
+          "harmony": {
+            "template": "T",
+            "angle": 90,
+            "fit_deg": 0.03
+          },
+          "source": "docs/reference/32_swing_close.png crop [255, 150, 260, 280]"
+        },
+        {
+          "lightness_median": 63.968,
+          "lightness_p10": 45.952,
+          "lightness_p90": 74.381,
+          "contrast_rms": 14.003,
+          "notan_dark": 0.049,
+          "notan_mid": 0.62,
+          "notan_light": 0.331,
+          "chroma_median": 24.701,
+          "chroma_p90": 50.041,
+          "chroma_dark": 14.29,
+          "chroma_mid": 28.105,
+          "chroma_light": 29.749,
+          "shadow_shift_a": 11.503,
+          "shadow_shift_b": 5.998,
+          "shadow_colour": "#566737",
+          "light_colour": "#CFC287",
+          "fourier_slope": 1.351,
+          "edge_density": 0.121,
+          "busyness": 3.54,
+          "hue_families": [
+            0.0065,
+            0.022,
+            0.0318,
+            0.3545,
+            0.4821,
+            0.0055,
+            0.0022,
+            0.0004,
+            0.0066,
+            0.0395,
+            0.0253,
+            0.0237
+          ],
+          "harmony": {
+            "template": "X",
+            "angle": 48,
+            "fit_deg": 0.11
+          },
+          "source": "docs/reference/27_tree_swing.png crop [330, 0, 420, 478]"
+        },
+        {
+          "lightness_median": 33.579,
+          "lightness_p10": 14.602,
+          "lightness_p90": 77.619,
+          "contrast_rms": 24.835,
+          "notan_dark": 0.502,
+          "notan_mid": 0.33,
+          "notan_light": 0.168,
+          "chroma_median": 20.604,
+          "chroma_p90": 47.617,
+          "chroma_dark": 21.043,
+          "chroma_mid": 31.407,
+          "chroma_light": 10.923,
+          "shadow_shift_a": -10.42,
+          "shadow_shift_b": -8.511,
+          "shadow_colour": "#3D2114",
+          "light_colour": "#D4CBC1",
+          "fourier_slope": 1.533,
+          "edge_density": 0.108,
+          "busyness": 3.65,
+          "hue_families": [
+            0.0041,
+            0.1096,
+            0.3595,
+            0.0517,
+            0.4081,
+            0.0028,
+            0.0001,
+            0.0002,
+            0.0003,
+            0.0151,
+            0.018,
+            0.0306
+          ],
+          "harmony": {
+            "template": "X",
+            "angle": 54,
+            "fit_deg": 0.03
+          },
+          "source": "docs/reference/27_tree_swing.png crop [0, 0, 300, 478]"
+        },
+        {
+          "lightness_median": 64.145,
+          "lightness_p10": 20.765,
+          "lightness_p90": 77.72,
+          "contrast_rms": 19.464,
+          "notan_dark": 0.169,
+          "notan_mid": 0.489,
+          "notan_light": 0.342,
+          "chroma_median": 10.727,
+          "chroma_p90": 50.667,
+          "chroma_dark": 5.583,
+          "chroma_mid": 36.556,
+          "chroma_light": 5.742,
+          "shadow_shift_a": -5.824,
+          "shadow_shift_b": 0.526,
+          "shadow_colour": "#473635",
+          "light_colour": "#C9C1BB",
+          "fourier_slope": 1.526,
+          "edge_density": 0.055,
+          "busyness": 2.28,
+          "hue_families": [
+            0.0156,
+            0.192,
+            0.0127,
+            0.0295,
+            0.6842,
+            0.0458,
+            0.0015,
+            0.0002,
+            0.0002,
+            0.0015,
+            0.0075,
+            0.0092
+          ],
+          "harmony": {
+            "template": "T",
+            "angle": 45,
+            "fit_deg": 0.56
+          },
+          "source": "docs/reference/26_trimmer_body.png crop [420, 110, 330, 240]"
+        },
+        {
+          "lightness_median": 67.314,
+          "lightness_p10": 25.103,
+          "lightness_p90": 72.714,
+          "contrast_rms": 17.735,
+          "notan_dark": 0.122,
+          "notan_mid": 0.612,
+          "notan_light": 0.266,
+          "chroma_median": 38.051,
+          "chroma_p90": 60.319,
+          "chroma_dark": 14.747,
+          "chroma_mid": 38.128,
+          "chroma_light": 50.188,
+          "shadow_shift_a": -18.583,
+          "shadow_shift_b": 28.812,
+          "shadow_colour": "#523E28",
+          "light_colour": "#B7B85D",
+          "fourier_slope": 1.241,
+          "edge_density": 0.135,
+          "busyness": 3.887,
+          "hue_families": [
+            0.0025,
+            0.0636,
+            0.019,
+            0.0299,
+            0.8469,
+            0.0322,
+            0.0001,
+            0.0,
+            0.0,
+            0.0001,
+            0.0016,
+            0.0041
+          ],
+          "harmony": {
+            "template": "T",
+            "angle": 21,
+            "fit_deg": 0.06
+          },
+          "source": "docs/reference/25_trimmer_head.png crop [200, 80, 420, 260]"
+        },
+        {
+          "lightness_median": 55.235,
+          "lightness_p10": 27.139,
+          "lightness_p90": 63.286,
+          "contrast_rms": 14.509,
+          "notan_dark": 0.234,
+          "notan_mid": 0.763,
+          "notan_light": 0.003,
+          "chroma_median": 53.535,
+          "chroma_p90": 60.958,
+          "chroma_dark": 27.863,
+          "chroma_mid": 51.619,
+          "chroma_light": 35.354,
+          "shadow_shift_a": -30.17,
+          "shadow_shift_b": 38.175,
+          "shadow_colour": "#5D332E",
+          "light_colour": "#A19E3E",
+          "fourier_slope": 1.57,
+          "edge_density": 0.043,
+          "busyness": 1.772,
+          "hue_families": [
+            0.0052,
+            0.4313,
+            0.0085,
+            0.0809,
+            0.4652,
+            0.0002,
+            0.0001,
+            0.0001,
+            0.0002,
+            0.0007,
+            0.0056,
+            0.002
+          ],
+          "harmony": {
+            "template": "T",
+            "angle": 339,
+            "fit_deg": 0.03
+          },
+          "source": "docs/reference/21_mower_rear_wheel.png crop [425, 330, 170, 148]"
+        },
+        {
+          "lightness_median": 46.718,
+          "lightness_p10": 25.546,
+          "lightness_p90": 63.329,
+          "contrast_rms": 15.139,
+          "notan_dark": 0.257,
+          "notan_mid": 0.734,
+          "notan_light": 0.009,
+          "chroma_median": 48.478,
+          "chroma_p90": 58.998,
+          "chroma_dark": 22.852,
+          "chroma_mid": 42.293,
+          "chroma_light": 41.569,
+          "shadow_shift_a": -21.059,
+          "shadow_shift_b": 37.591,
+          "shadow_colour": "#523230",
+          "light_colour": "#A89D47",
+          "fourier_slope": 1.239,
+          "edge_density": 0.082,
+          "busyness": 2.82,
+          "hue_families": [
+            0.0082,
+            0.4128,
+            0.1057,
+            0.136,
+            0.328,
+            0.0002,
+            0.0001,
+            0.0001,
+            0.0001,
+            0.0007,
+            0.0044,
+            0.0036
+          ],
+          "harmony": {
+            "template": "T",
+            "angle": 339,
+            "fit_deg": 0.02
+          },
+          "source": "docs/reference/21_mower_rear_wheel.png crop [290, 255, 300, 223]"
+        }
+      ],
+      "leave_one_out": {
+        "inside_share": [
+          0.94,
+          0.94,
+          0.88,
+          0.82,
+          0.94,
+          0.82,
+          0.71,
+          0.88,
+          0.94,
+          0.94,
+          0.88,
+          1.0,
+          0.76,
+          1.0,
+          0.94,
+          0.65,
+          0.88
+        ],
+        "median": 0.88
+      }
+    },
+    "albedo": {
+      "defined_by": [
+        "hose_nozzle",
+        "house",
+        "mower",
+        "shed",
+        "tire_swing",
+        "tree",
+        "trimmer",
+        "wheel"
+      ],
+      "approved_only": false,
+      "colours": 40031,
+      "gamut": {
+        "lightness": [
+          5.8,
+          92.7
+        ],
+        "chroma_max": 81.5,
+        "chroma_median": 15.5,
+        "chroma_floor": 15.5,
+        "chroma_by_hue": [
+          65.2,
+          81.5,
+          70.8,
+          56.6,
+          59.6,
+          52.7,
+          42.2,
+          15.5,
+          15.5,
+          15.5,
+          15.5,
+          15.5
+        ]
+      },
+      "palette": [
+        {
+          "hex": "#202124",
+          "lab": [
+            12.5,
+            0.4,
+            -2.1
+          ],
+          "share": 0.231
+        },
+        {
+          "hex": "#48301E",
+          "lab": [
+            22.3,
+            8.1,
+            16.0
+          ],
+          "share": 0.2
+        },
+        {
+          "hex": "#3D3D3F",
+          "lab": [
+            25.8,
+            0.6,
+            -1.5
+          ],
+          "share": 0.165
+        },
+        {
+          "hex": "#C29E66",
+          "lab": [
+            67.2,
+            6.3,
+            33.9
+          ],
+          "share": 0.126
+        },
+        {
+          "hex": "#267C44",
+          "lab": [
+            46.0,
+            -38.8,
+            23.4
+          ],
+          "share": 0.091
+        },
+        {
+          "hex": "#3D412A",
+          "lab": [
+            26.6,
+            -6.1,
+            13.5
+          ],
+          "share": 0.059
+        },
+        {
+          "hex": "#D3D2C5",
+          "lab": [
+            83.9,
+            -1.8,
+            6.6
+          ],
+          "share": 0.04
+        },
+        {
+          "hex": "#545249",
+          "lab": [
+            34.6,
+            -0.9,
+            5.6
+          ],
+          "share": 0.029
+        },
+        {
+          "hex": "#BE392B",
+          "lab": [
+            44.4,
+            52.1,
+            38.9
+          ],
+          "share": 0.027
+        },
+        {
+          "hex": "#C3B459",
+          "lab": [
+            72.8,
+            -6.1,
+            47.8
+          ],
+          "share": 0.025
+        },
+        {
+          "hex": "#D25A33",
+          "lab": [
+            53.3,
+            45.2,
+            45.1
+          ],
+          "share": 0.005
+        },
+        {
+          "hex": "#A8352A",
+          "lab": [
+            39.6,
+            46.2,
+            33.2
+          ],
+          "share": 0.001
+        },
+        {
+          "hex": "#773229",
+          "lab": [
+            30.2,
+            29.3,
+            20.5
+          ],
+          "share": 0.0
+        },
+        {
+          "hex": "#9B9897",
+          "lab": [
+            63.1,
+            0.6,
+            1.2
+          ],
+          "share": 0.0
+        },
+        {
+          "hex": "#CB8D7D",
+          "lab": [
+            64.4,
+            21.4,
+            17.8
+          ],
+          "share": 0.0
+        },
+        {
+          "hex": "#618D46",
+          "lab": [
+            54.1,
+            -28.5,
+            33.2
+          ],
+          "share": 0.0
+        }
+      ],
+      "accents": [
+        {
+          "hex": "#BE392B",
+          "lab": [
+            44.4,
+            52.1,
+            38.9
+          ]
+        },
+        {
+          "hex": "#C4B459",
+          "lab": [
+            73.0,
+            -6.0,
+            47.9
+          ]
+        },
+        {
+          "hex": "#D25A33",
+          "lab": [
+            53.3,
+            45.2,
+            45.1
+          ]
+        },
+        {
+          "hex": "#A8352A",
+          "lab": [
+            39.6,
+            46.2,
+            33.2
+          ]
+        },
+        {
+          "hex": "#8EAF4F",
+          "lab": [
+            67.2,
+            -26.5,
+            44.7
+          ]
+        }
+      ]
+    }
+  },
+  "history": [
+    {
+      "date": "2026-10-23",
+      "change": "first style spec: measured from the trailer's reference crops and the 8 built models; rules from the project's modelling rules"
+    },
+    {
+      "date": "2026-10-23",
+      "version": "1.1",
+      "change": "schema 2: rules with ids, kind (invariant/tunable) and the check that enforces each; stylisation parameters (anchor, tie-breaker, detail floor, chamfer band, budgets)"
+    },
+    {
+      "date": "2026-10-24",
+      "version": "1.1",
+      "change": "checks, no change to the look: finish by kind, class budgets and chamfers in Style.py report (budgets and chamfers report only until the user decides on the assets they flag); game shots against their reference frames (Style.py shots, report only); near misses in the review"
+    }
+  ]
+}

@@ -18,6 +18,11 @@ Usage:
   py -3 tools/Review.py approve MODEL [MODEL ...] [--by NAME]
       The user's approval of the asset as it is now: its asset hash (geometry, UVs, plan, surfaces) and its textures
       (compared with a small tolerance, because a bake may differ by noise).
+  py -3 tools/Review.py decide MODEL approve|revise|escalate --stage blockout|final [--note "<view>: <what>"] [--by NAME]
+      One decision per round (the research report, step 8): approve (go on to detail, or to the user's approval), revise
+      (another round) or escalate (the user decides). revise and escalate need a note with a location: a view or pack image
+      and what is wrong there. After MAX_ROUNDS revisions at one stage, only approve or escalate is accepted. The log is
+      tools/blender/decisions/<model>.jsonl; state shows the rounds.
   py -3 tools/Review.py state [MODEL ...] [--json]
       Each model's state: approved, approval outdated, reviewed, review: N open, review outdated, needs review, not
       approved; plus warnings (open high/medium findings, critical features failing or unverified) that keep an approved
@@ -30,6 +35,7 @@ import glob
 import hashlib
 import json
 import os
+import re
 import shutil
 import sys
 
@@ -42,6 +48,10 @@ CARRY_BOUNDS = 0.02    # m: the final's overall bounds may differ this much from
 CARRY_SHELLS = 0.05    # fraction: and its piece count this much (detail like chamfers adds none; new parts do)
 TEXTURE_MEAN = 1.0     # 8-bit levels on a 16 x 16 thumbnail: textures within this are the approved ones
 TEXTURE_MAX = 8
+DECISIONS = ("approve", "revise", "escalate")
+STAGES = ("blockout", "final")
+MAX_ROUNDS = 3         # revisions at one stage before the decision goes to the user
+PLACES = ("sheet", "lineup", "silhouette", "game")   # locations besides the model's views and the pack's images
 
 
 def paths():
@@ -55,6 +65,9 @@ def paths():
         "fbx": os.path.join(ROOT, "Assets", "Opus", "Resources", "Models"),
         "renders": os.path.join(ROOT, "Builds", "Models"),
         "packs": os.path.join(ROOT, "Builds", "Review"),
+        "decisions": os.path.join(ROOT, "tools", "blender", "decisions"),
+        "style": os.path.join(ROOT, "tools", "blender", "style", "style.json"),
+        "lookdev": os.path.join(ROOT, "Builds", "Style", "lookdev"),
     }
 
 
@@ -163,6 +176,25 @@ def pack(model, stage):
     for name in closeups:
         shutil.copyfile(os.path.join(folder, name[5:]), os.path.join(out, name))
         files.append(name)
+    # The art style: its board (both palettes and the sources) goes with every pack (skill art-style), with the heroes
+    # (the approved look, to compare pairwise) and the near misses (the style and the ways to miss it, each with its rule)
+    board = os.path.join(ROOT, "Builds", "Style", "style_board.png")
+    if os.path.exists(board):
+        shutil.copyfile(board, os.path.join(out, "style_board.png"))
+        files.append("style_board.png")
+    style = read_json(p["style"])
+    heroes = [h for h in (style or {}).get("heroes", []) if h != model]
+    tiles = [(hero_view(h), h) for h in heroes]
+    if strip([t for t in tiles if t[0]], os.path.join(out, "heroes.png")):
+        files.append("heroes.png")
+    rows = []
+    for near in (style or {}).get("lookdev", {}).get("near_miss_models", []):
+        row = [(os.path.join(p["lookdev"], f"near_{near}_style.png"), f"{near}: the style")]
+        row += [(os.path.join(p["lookdev"], f"near_{near}_{n['variant']}.png"), f"{n['variant']} ({n['rule']})")
+                for n in style.get("near_misses", [])]
+        rows.append([r for r in row if os.path.exists(r[0])])
+    if strip_rows([r for r in rows if r], os.path.join(out, "near_misses.png")):
+        files.append("near_misses.png")
     pack_id = sha(spec.get("structure", "") + "".join(sha_file(os.path.join(out, f)) for f in files) + stage)[:12]
     plan = spec.get("plan")
     lines = [f"# Review brief: {model} ({stage})", "",
@@ -210,6 +242,30 @@ def pack(model, stage):
             lines += [f"- `{item['overlay']}` against {item['frame']}: alignment {item['alignment']} "
                       f"(reprojection {item['rms_px']} px, {item['rms_pct']} % of the object's height)"]
             lines += [f"  - {m}" for m in item.get("messages", [])]
+    if style and "albedo" in style.get("measured", {}):
+        lines += ["", f"**Art style** (judge the renders against `style_board.png` and these rules): {style.get('summary', '')}"]
+        lines += [f"- `{r['id']}` ({r['kind']}): {r['text']}" for r in style.get("rules", [])]
+        if "heroes.png" in files:
+            lines += ["", f"**Against the heroes** (`heroes.png`: {', '.join(heroes)}, the look every asset matches): compare "
+                          "this model with them on colour, finish, detail density, edge softness and proportion. Each axis "
+                          "where it clearly differs is a \"style:\" finding."]
+        if "near_misses.png" in files:
+            lines += ["", "**Near misses** (`near_misses.png`): a model in the style, then the ways to miss it, each with the "
+                          "rule it breaks. If this model looks like one of them, report it under that rule."]
+        lines += ["", "**A \"style:\" finding needs a `location`:** the pack image and where in it "
+                      "(`view_front.png: the roof edge`); `record` refuses one without."]
+        try:
+            sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+            import Style
+            Style.ROOT = ROOT
+            problems, distance, _ = Style.check(model, style)
+            rule_problems, warnings, info = Style.rules_check(model, style)
+            lines += [f"- measured: base colours {'inside' if not problems else 'OUTSIDE: ' + '; '.join(problems)} the style; "
+                      f"farthest surface from the palette {distance} (CIELAB); {info['triangles']:,} triangles"
+                      + (f" ({info['class']})" if info["class"] else "")]
+            lines += [f"- measured: {m}" for m in rule_problems + warnings]
+        except (FileNotFoundError, KeyError):
+            pass
     previous = read_json(os.path.join(p["reviews"], model + ".json"))
     decided = [f for f in (previous or {}).get("findings", []) if f.get("status") in ("dismissed", "fixed")]
     if decided:
@@ -236,6 +292,105 @@ def pack(model, stage):
     return manifest
 
 
+def hero_view(model):
+    """A hero's first rendered view (its views.json order), or None."""
+    folder = os.path.join(paths()["renders"], model)
+    views = read_json(os.path.join(folder, "views.json"), {}).get("views", [])
+    for view in views:
+        path = os.path.join(folder, view.get("file", ""))
+        if view.get("type") != "reference" and view.get("file") and os.path.exists(path):
+            return path
+    return None
+
+
+def strip(tiles, out, height=420):
+    """Images side by side, each labelled below: [(path, label)] -> out (False when there are none)."""
+    from PIL import Image, ImageDraw
+    images = []
+    for path, label in tiles:
+        with Image.open(path) as image:
+            image = image.convert("RGB")
+            image.thumbnail((height * 2, height))
+            images.append((image, label))
+    if not images:
+        return False
+    sheet = Image.new("RGB", (sum(i.width + 8 for i, _ in images) + 8, height + 34), (250, 247, 240))
+    draw = ImageDraw.Draw(sheet)
+    x = 8
+    for image, label in images:
+        sheet.paste(image, (x, 8))
+        draw.text((x, height + 14), label, fill=(40, 36, 32))
+        x += image.width + 8
+    sheet.save(out)
+    return True
+
+
+def strip_rows(rows, out, height=260):
+    """Rows of labelled images (strip), one under the other: [[(path, label)]] -> out (False when there are none)."""
+    from PIL import Image
+    parts = []
+    for i, row in enumerate(rows):
+        part = out + f".{i}.png"
+        if strip(row, part, height):
+            parts.append(part)
+    if not parts:
+        return False
+    images = [Image.open(part).convert("RGB") for part in parts]
+    sheet = Image.new("RGB", (max(i.width for i in images), sum(i.height for i in images)), (250, 247, 240))
+    y = 0
+    for image, part in zip(images, parts):
+        sheet.paste(image, (0, y))
+        y += image.height
+        image.close()
+        os.remove(part)
+    sheet.save(out)
+    return True
+
+
+def decisions(model):
+    path = os.path.join(paths()["decisions"], model + ".jsonl")
+    if not os.path.exists(path):
+        return []
+    with open(path, encoding="utf-8") as f:
+        return [json.loads(line) for line in f if line.strip()]
+
+
+def places(model):
+    """What a decision's note may name as its location: the model's rendered views (final and preview), the pack's
+    images and a few shared places (PLACES)."""
+    p = paths()
+    names = set(PLACES)
+    for folder in (os.path.join(p["renders"], model), os.path.join(p["renders"], model + "_preview"), os.path.join(p["packs"], model)):
+        for path in glob.glob(os.path.join(folder, "*.png")):
+            names.update((os.path.basename(path), os.path.basename(path)[:-4]))
+    return names
+
+
+def decide(model, decision, stage, note, by):
+    """One decision per round: approve, revise or escalate (see the usage)."""
+    if decision not in DECISIONS or stage not in STAGES:
+        sys.exit(f"decide MODEL {'|'.join(DECISIONS)} --stage {'|'.join(STAGES)}")
+    where, _, what = (note or "").partition(":")
+    if decision != "approve" or note:
+        known = places(model)
+        if where.strip() not in known or len(what.split()) < 2:
+            sys.exit(f"a note needs a location and what is wrong there: '<view>: <what>' (for example 'front: the roof "
+                     f"overhang is too deep'); locations for {model}: {', '.join(sorted(n for n in known if not n.endswith('.png')))}")
+    log = decisions(model)
+    at_stage = [d for d in log if d["stage"] == stage]
+    revisions = sum(1 for d in at_stage if d["decision"] == "revise")
+    if decision == "revise" and revisions >= MAX_ROUNDS:
+        sys.exit(f"{model}: {revisions} revisions at {stage} already: approve it or escalate to the user")
+    spec = load_spec(model, "preview" if stage == "blockout" else "final", required=False) or {}
+    entry = {"date": datetime.date.today().isoformat(), "stage": stage, "round": len(at_stage) + 1, "decision": decision,
+             "note": note or "", "by": by or "auto", "structure": spec.get("structure")}
+    os.makedirs(paths()["decisions"], exist_ok=True)
+    with open(os.path.join(paths()["decisions"], model + ".jsonl"), "a", encoding="utf-8", newline="\n") as f:
+        f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+    print(f"{model} {stage} round {entry['round']}: {decision}" + (f" ({note})" if note else ""))
+    return entry
+
+
 def check_findings(data, manifest):
     """The reviewer's JSON against the format and against the pack it claims to review."""
     problems = []
@@ -250,6 +405,11 @@ def check_findings(data, manifest):
             problems.append(f"finding {i}: severity must be one of {SEVERITIES}")
         if item.get("confidence") not in CONFIDENCES:
             problems.append(f"finding {i}: confidence must be one of {CONFIDENCES}")
+        if str(item.get("problem", "")).strip().lower().startswith("style:"):
+            where, _, what = str(item.get("location", "")).partition(":")
+            if where.strip() not in manifest["files"] or not what.strip():
+                problems.append(f"finding {i}: a style finding needs a location: a pack image and where in it "
+                                f"(\"view_front.png: the roof edge\"); the pack has {', '.join(sorted(manifest['files']))}")
     verdicts = {v.get("id"): v for v in (data.get("features", []) if isinstance(data, dict) else [])}
     for fid in manifest.get("features", []):
         v = verdicts.get(fid)
@@ -341,7 +501,9 @@ def texture_files(model, spec):
         return sorted(os.path.join(ROOT, f) for f in spec["atlas"].get("textures", {}).values())
     if spec.get("tiled"):
         table = read_json(os.path.join(p["fbx"], "Tiling", "tiling.json"), {})
-        sets = {table.get("materials", {}).get(m, {}).get("set") for m in table.get("models", {}).get(model, {}).values()}
+        looks = {m["name"]: m for m in table.get("materials", [])}   # (lists in the file: name -> look, model -> slots)
+        slots = next((m["slots"] for m in table.get("models", []) if m["model"] == model), [])
+        sets = {looks.get(s["material"], {}).get("set") for s in slots}
         return sorted(os.path.join(p["fbx"], "Tiling", f"{s}_{kind}.png") for s in sets if s for kind in ("tone", "normal"))
     return []
 
@@ -422,8 +584,16 @@ def state(model):
         name = "not approved"
     if approval and not approved:
         warnings.insert(0, reason)
-    text = name + (f"; {'; '.join(warnings)}" if warnings else "")
-    return {"state": name, "warnings": warnings, "clean": approved and not warnings, "text": text}
+    rounds = []
+    log = decisions(model)
+    for stage in STAGES:
+        at_stage = [d for d in log if d["stage"] == stage]
+        if at_stage:
+            rounds.append(f"{stage} {at_stage[-1]['decision']} in round {at_stage[-1]['round']}")
+            if at_stage[-1]["decision"] == "escalate":
+                warnings.append(f"{stage} escalated: waiting for the user")
+    text = name + (f"; {'; '.join(warnings)}" if warnings else "") + (f" | {', '.join(rounds)}" if rounds else "")
+    return {"state": name, "warnings": warnings, "clean": approved and not warnings, "text": text, "rounds": rounds}
 
 
 def all_models():
@@ -432,16 +602,21 @@ def all_models():
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("action", choices=("pack", "record", "status", "carry", "approve", "state"))
+    parser.add_argument("action", choices=("pack", "record", "status", "carry", "approve", "decide", "state"))
     parser.add_argument("args", nargs="*")
-    parser.add_argument("--stage", choices=("preview", "final"), default="final")
+    parser.add_argument("--stage", choices=("preview", "blockout", "final"), default="final",
+                        help="blockout is the preview build (tools/Models.ps1 -Preview)")
     parser.add_argument("--reviewer", default="")
     parser.add_argument("--by", default="")
     parser.add_argument("--note", default="")
     parser.add_argument("--json", action="store_true")
     a = parser.parse_args()
     if a.action == "pack":
-        pack(a.args[0], a.stage)
+        pack(a.args[0], "preview" if a.stage == "blockout" else a.stage)
+    elif a.action == "decide":
+        if len(a.args) != 2:
+            sys.exit(f"decide MODEL {'|'.join(DECISIONS)} --stage blockout|final --note \"<view>: <what>\"")
+        decide(a.args[0], a.args[1], "final" if a.stage == "final" else "blockout", a.note, a.by)
     elif a.action == "record":
         if len(a.args) != 2 or not a.reviewer:
             sys.exit("record MODEL FINDINGS.json --reviewer NAME")

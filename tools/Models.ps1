@@ -11,18 +11,6 @@ param([string]$Only, [switch]$Checks, [string]$BlenderPath, [switch]$Preview)
 . (Join-Path $PSScriptRoot '_common.ps1')
 Add-Type -AssemblyName System.Drawing
 
-function Get-BlenderPath([string]$Override) {
-    $candidates = @($Override, $env:BLENDER,
-        'D:\Steam\steamapps\common\Blender\blender.exe',
-        'C:\Program Files (x86)\Steam\steamapps\common\Blender\blender.exe')
-    $candidates += @(Get-ChildItem 'C:\Program Files\Blender Foundation' -Filter blender.exe -Recurse -ErrorAction SilentlyContinue |
-            Sort-Object FullName -Descending | ForEach-Object { $_.FullName })
-    foreach ($candidate in $candidates) {
-        if ($candidate -and (Test-Path -LiteralPath $candidate)) { return $candidate }
-    }
-    throw 'Blender not found; pass -BlenderPath or set the BLENDER environment variable.'
-}
-
 # Combines the views rendered by Blender and the reference crops on a single labelled page.
 function New-ContactSheet([string]$Model, [switch]$Preview) {
     $folder = if ($Preview) { "${Model}_preview" } else { $Model }

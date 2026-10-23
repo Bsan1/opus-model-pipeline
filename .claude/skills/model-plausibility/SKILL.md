@@ -26,6 +26,10 @@ The plan's `sources` names the kind.
 - **text:** write the plan first and show it to the user as one short table before any geometry.
 - **real:** for how things are really built or rigged, look up real references (guides, photos) before modelling (rope, knots, framing).
 
+## 2a. Read the art style
+
+Before the plan, write the brief: `py -3 tools/Style.py brief <m> --class <class>` (`Builds/Style/briefs/<m>.md`: the style in one page for the class: budget, detail floor, chamfers, colours with the ceiling per hue, finishes by kind, every rule). For a new kind of object, also look at the art bible's lineup and do/don't pages. Defining or changing the style is the `art-style` skill's process.
+
 ## 2b. Research how this kind of object is modelled (before the plan)
 
 The user's rule, 23 October 2026: before modelling a new kind of object, find out how others model it for games and how it is really built. Game-art breakdowns, modelling blogs and videos give the tricks for its parts: where to put the edge loops, what to bake instead of model, how a low-poly version keeps the silhouette, how the real thing joins. That makes the model more accurate, less illogical and cheaper.
@@ -91,6 +95,12 @@ A new kind of object gets a new file only when its first model teaches something
 
 **Preview.** `tools/Models.ps1 -Only <m> -Preview` takes seconds. It runs validation, the plan and the construction gate, then writes labelled renders and the plan card to `Builds/Models/<m>_preview.png`, with no baking, no other gates and no export. Use it once the main bodies and joints exist, before detailing.
 
+**Block-out decision** (every tier, after the first preview): one decision per round, logged in `tools/blender/decisions/<m>.jsonl`:
+`py -3 tools/Review.py decide <m> approve|revise|escalate --stage blockout --note "<view>: <what>"`.
+- `revise` and `escalate` need a located note: a rendered view or a pack image, and what is wrong there. "Make it better" is refused.
+- After 3 revisions at one stage only `approve` or `escalate` is accepted: the user decides, and `Review.py state` shows the model as waiting until a later decision.
+- The final stage ends the same way (`--stage final`) after the review and the look-dev lineup.
+
 **Reference comparison** (when a frame exists; before packing): `py -3 tools/Compare.py <m>`.
 - It reads landmarks from `tools/blender/references/<m>.json`: points picked on the frame, each with its model point; `vfov_deg` fixes a known game camera.
 - It solves the camera and reports the alignment: aligned ≤ 1.5 % of the object's height, rough ≤ 4 %, otherwise poor.
@@ -103,7 +113,7 @@ A new kind of object gets a new file only when its first model teaches something
 
 **Review.** Follow these steps in order:
 1. `py -3 tools/Review.py pack <m> --stage preview` (or `final`) writes `Builds/Review/<m>/sheet.png`, `brief.md`, any comparison overlays and `manifest.json` (pack id and hashes). The findings must name the pack id, and `record` refuses a pack whose files changed after it was made. Decided findings are listed so they are not reported again.
-2. Start an independent reviewer with fresh context: the Agent tool, model `sonnet` unless the model is hard to read. Prompt: *"Read only these and nothing else: .claude/skills/model-plausibility/review.md, Builds/Review/<m>/brief.md, Builds/Review/<m>/sheet.png and every view_*.png the brief lists. Write Builds/Review/<m>/findings.json in the format review.md gives. Reply with one line."* Any other vision model can take the same pack, because the interface is the image, the brief and the JSON format.
+2. Start an independent reviewer with fresh context: the Agent tool, model `sonnet` unless the model is hard to read. Prompt: *"Read only these and nothing else: .claude/skills/model-plausibility/review.md, Builds/Review/<m>/brief.md, Builds/Review/<m>/sheet.png, style_board.png, heroes.png, near_misses.png and every view_*.png the brief lists. Write Builds/Review/<m>/findings.json in the format review.md gives. Reply with one line."* Any other vision model can take the same pack, because the interface is the image, the brief and the JSON format.
    - Cost, measured on the mower (22 October 2026). The first trial used 91k tokens, 20 tool calls and 225 s, because the reviewer explored the repository. With this prompt it used 65k tokens, 5 calls and 60 s; most of the rest is the agent's own fixed context, and the pack is one image plus about 7 KB. The second trial repeated none of the decided findings and found one plan gap (the rear flap's hinge pin).
 3. Record the findings: `py -3 tools/Review.py record <m> Builds/Review/<m>/findings.json --reviewer <model id> --stage ...`.
 4. **Act without asking:**

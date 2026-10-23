@@ -250,14 +250,17 @@ def build_lines(spinning):
     return bm
 
 
-model.part("Shaft", build_shaft(), [SHAFT], unity=True)
+model.part("Shaft", build_shaft(), [SHAFT], unity=True,
+           no_chamfer="a round tube: no hard edge along it, and its two ends sit inside the motor's neck and the gearbox")
 model.part("Motor", build_motor(), [RED, BATTERY, WHITE, LABEL, BLACK, KEYS, RECESS, LATCH], unity=True,
            bevel={"width": 0.0018, "segments": 1, "angle": 35.0})
 model.part("DHandle", build_handle(), [BLACK], unity=True, bevel={"width": 0.0012, "segments": 1, "angle": 35.0})
 model.part("Head", build_head(), [BLACK, ORANGE], unity=True, bevel={"width": 0.0012, "segments": 1, "angle": 35.0})
-model.part("Line", build_lines(True), [LINE], unity=True, location=(0.0, SPOOL_Y, 0.0), smooth=False)
+model.part("Line", build_lines(True), [LINE], unity=True, location=(0.0, SPOOL_Y, 0.0), smooth=False,
+           no_chamfer="a 3 mm nylon cord: thinner than the chamfer band allows")
 # free: the two tips are apart from each other; each comes out of a spool hole in the Head, another object
-model.part("LineTips", build_lines(False), [LINE], unity=True, location=(0.0, SPOOL_Y, 0.0), smooth=False, free=True)
+model.part("LineTips", build_lines(False), [LINE], unity=True, location=(0.0, SPOOL_Y, 0.0), smooth=False, free=True,
+           no_chamfer="a 3 mm nylon cord: thinner than the chamfer band allows")
 model.anchor("Spool", V(0.0, SPOOL_Y, 0.0))
 model.anchor("BodyFront", BODY_FRONT)
 model.anchor("BatteryBack", BATTERY_BACK)
