@@ -131,6 +131,7 @@ PLAN_ROLES = ("functional", "structural", "decorative")
 PLAN_MOVES = ("fixed", "hinge", "slide", "spin", "flex", "free")
 PLAN_SEEN = ("seen", "guess", "real")
 PLAN_CATEGORIES = ("machines", "suspended", "buildings", "organic")   # .claude/skills/model-plausibility/categories/*.md
+FEATURE_TIERS = ("critical", "important", "optional")
 # Preview (tools/Models.ps1 -Preview): validation, the plan and the construction gate, then labelled renders only; no other
 # gates, no baking, no FBX or spec file (Builds/Models/<name>_preview.png). For looking at the structure before detailing.
 PREVIEW = os.environ.get("OPUS_PREVIEW") == "1"
@@ -1261,6 +1262,9 @@ class Model:
         self.routes = []           # cables, ropes, pipes that must reach what they join (route())
         self.attachments = []      # points where two parts must meet (attach())
         self.free_parts = set()    # parts allowed to stand apart (part(free=True))
+        self.supports = []         # where something outside the model holds it (support())
+        self.located = []          # plan components tied to geometry (a part, route, attachment, support or anchor)
+        self.feature_data = []     # identity-defining features with their acceptance (features())
         bpy.ops.wm.read_factory_settings(use_empty=True)
         scene = bpy.context.scene
         scene.unit_settings.system = "METRIC"
@@ -1544,20 +1548,93 @@ class Model:
                            for n, r, j, a, m, s in components],
         }
 
-    def route(self, name, points, tol=0.005, free=(), unity=False):
+    def features(self, items):
+        """
+        The features that make the object what it is, each with its own acceptance (after the per-feature review of
+        img2threejs: a convincing whole must not hide a missing control or a wrong attachment). The plan says what every
+        component does; a feature says which relationship must be seen to hold.
+        items: [(id, tier, components, expect, measure, view)]:
+          tier critical | important | optional;
+          components: plan component names; expect: the relationship or behaviour that must hold;
+          measure: "route:<name>" | "attach:<name>" | "support:<name>" (a glob, e.g. "route:Downspout_*") or None (visual
+          only); view: the contact-sheet view that shows it, or None.
+        The build sets `measured` (pass/fail) from the construction gate; the reviewer must give every critical and
+        important feature a verdict (pass, fail, unverified). A critical feature counts only when measured (if measurable)
+        and seen to pass: unverified is never passed (Review.py state).
+        """
+        problems = []
+        names = {c["name"] for c in (self.plan_data or {}).get("components", [])}
+        if not names:
+            problems.append("features need a plan (model.plan first)")
+        out = []
+        for fid, tier, components, expect, measure, view in items:
+            if tier not in FEATURE_TIERS:
+                problems.append(f"{fid}: tier '{tier}' is not one of {FEATURE_TIERS}")
+            unknown = [c for c in components if c not in names]
+            if unknown:
+                problems.append(f"{fid}: components not in the plan: {unknown}")
+            if measure and measure.split(":")[0] not in ("route", "attach", "support"):
+                problems.append(f"{fid}: measure '{measure}' is not route:/attach:/support:<name>")
+            if not expect.strip():
+                problems.append(f"{fid}: no expectation")
+            out.append({"id": fid, "tier": tier, "components": list(components), "expect": expect, "measure": measure,
+                        "view": view, "measured": None})
+        if problems:
+            raise ValueError(f"{self.name}: features: " + "; ".join(problems))
+        self.feature_data = out
+
+    def _measure_features(self, problems, views=None):
+        """Each feature's measured result from the construction gate's problems; unknown names or views are problems."""
+        import fnmatch
+        declared = {"route": [r["name"] for r in self.routes], "attach": [a["name"] for a in self.attachments],
+                    "support": [s["name"] for s in self.supports]}
+        labels = {"route": "route", "attach": "attachment", "support": "support"}
+        extra = []
+        for feature in self.feature_data:
+            if feature["measure"]:
+                kind, pattern = feature["measure"].split(":", 1)
+                hits = fnmatch.filter(declared[kind], pattern)
+                if not hits:
+                    extra.append(f"feature {feature['id']}: no {kind} matches '{pattern}'")
+                    feature["measured"] = "fail"
+                    continue
+                failing = [h for h in hits if any(f"{labels[kind]} '{h}'" in p for p in problems)]
+                feature["measured"] = "fail" if failing else "pass"
+            if views is not None and feature["view"] and feature["view"] not in {v["file"] for v in views}:
+                extra.append(f"feature {feature['id']}: no view '{feature['view']}' on the contact sheet")
+        return extra
+
+    def route(self, name, points, tol=0.005, free=(), unity=False, part=None, ends=None, component=None):
         """
         A cable, rope, pipe or rod that runs from one thing to another: `points` lie on its centreline (its two ends and any
         clip or guide on the way). Checked at finish: one piece passes within `tol` of every point (tol > its radius) and
         each end not listed in `free` (indices of points on things outside the model) touches another piece.
+        part: the piece must belong to this part (a cable of the Handle, not some other piece that happens to pass there);
+        ends: (part at the first point, part at the last point) its ends must touch; component: its name in the plan.
         """
         pts = [_to_blender(p) if unity else Vector(p) for p in points]
-        self.routes.append({"name": name, "points": pts, "tol": tol, "free": tuple(free)})
+        self.routes.append({"name": name, "points": pts, "tol": tol, "free": tuple(free), "part": part,
+                            "ends": tuple(ends) if ends else None, "component": component or name})
 
-    def attach(self, name, point, tol=0.004, unity=False):
-        """A point where two pieces must meet (a hinge pin, a clip, a bracket, a bolt): checked at finish."""
-        self.attachments.append({"name": name, "point": _to_blender(point) if unity else Vector(point), "tol": tol})
+    def attach(self, name, point, tol=0.004, unity=False, parts=None, component=None):
+        """
+        A point where two pieces must meet (a hinge pin, a clip, a bracket, a bolt): checked at finish. parts: the two
+        parts that must meet there (otherwise any two nearby pieces count); component: its name in the plan.
+        """
+        self.attachments.append({"name": name, "point": _to_blender(point) if unity else Vector(point), "tol": tol,
+                                 "parts": tuple(parts) if parts else None, "component": component or name})
 
-    def _gate_construction(self, ground, separate=False, contact=0.003, raise_errors=True):
+    def support(self, name, points, tol=0.02, unity=False, component=None):
+        """
+        Where something outside the model holds it: the plan's support `name` ("hands", "branch", "wheels") acts at these
+        points. The construction gate counts the pieces there as held (like the ground), so a model is one assembly held by
+        its supports, not merely one connected lump; every point must touch the model. Each plan support other than
+        "ground" needs one (or, for models whose parts are assembled in game, finish(ao_together=False), it is not checked).
+        """
+        pts = [_to_blender(p) if unity else Vector(p) for p in points]
+        self.supports.append({"name": name, "points": pts, "tol": tol, "component": component})
+
+    def _gate_construction(self, ground, separate=False, contact=0.003, raise_errors=True, views=None):
         """
         Construction gate (qc.connectivity, qc.check_links): every piece is held by the others or the ground (no part
         floating in mid-air), every declared route reaches what it joins, every declared attachment meets. Leaves and
@@ -1566,15 +1643,40 @@ class Model:
         solid = [obj for obj, _ in self.parts if obj.name not in self.foliage and obj.name not in self.free_parts]
         groups = [[obj] for obj in solid] if separate else [solid]
         result = {"shells": 0, "components": 0, "stray": [], "routes": len(self.routes),
-                  "attachments": len(self.attachments), "problems": []}
+                  "attachments": len(self.attachments), "supports": len(self.supports), "problems": []}
+        problems = []
+        # The plan's supports must be where the geometry is held (combined models; parts assembled in game are not)
+        declared = {s["name"] for s in self.supports}
+        if self.plan_data and not separate:
+            for name in self.plan_data["supports"]:
+                if name == "ground" and ground is None:
+                    problems.append("the plan stands it on the ground but finish(ground=...) is not set")
+                elif name != "ground" and name not in declared:
+                    problems.append(f"the plan's support '{name}' is not located (model.support)")
+        held = [(p, s["tol"]) for s in self.supports for p in s["points"]] if not separate else None
         for group in groups:
             if not group:
                 continue
-            r = qc.connectivity(group, tol=contact, ground=ground)
+            r = qc.connectivity(group, tol=contact, ground=ground, supports=held)
             result["shells"] += r["shells"]
             result["components"] += r["components"]
             result["stray"] += r["stray"]
-        result["problems"] = qc.check_links(solid, self.routes, self.attachments) if solid else []
+            if r.get("floating"):
+                problems.append(r["floating"])
+        problems += qc.check_links(solid, self.routes, self.attachments, self.supports) if solid else []
+        # Plan components tied to geometry; links must name components that exist
+        if self.plan_data:
+            names = {c["name"] for c in self.plan_data["components"]}
+            tied = ({obj.name for obj, _ in self.parts} | {r["component"] for r in self.routes}
+                    | {a["component"] for a in self.attachments} | {a["name"] for a in self.anchors}
+                    | {s["component"] for s in self.supports if s["component"]})
+            self.located = sorted(names & tied)
+            for item in self.routes + self.attachments:
+                if item["component"] not in names:
+                    problems.append(f"'{item['name']}' names the component '{item['component']}', which the plan "
+                                    f"does not have (component=...)")
+        problems += self._measure_features(problems, views)
+        result["problems"] = problems
         result["stray"] = result["stray"][:20]
         floating = len(result["stray"])
         self.qc["construction"] = result
@@ -1995,7 +2097,7 @@ class Model:
         """Models.ps1 -Preview: the cheap checks, then labelled renders into Builds/Models/<name>_preview (no FBX, no spec)."""
         self.drop_unused_slots()
         stats = self.validate(budget, total_budget)
-        construction = self._gate_construction(ground, separate=separate, contact=contact, raise_errors=False)
+        construction = self._gate_construction(ground, separate=separate, contact=contact, raise_errors=False, views=views)
         static = [(o, c) for o, c in self.parts if o.name not in apart]
         kept = [(o, c) for o, c in self.parts if o.name in apart]   # taken before the join removes the other objects
         if join_name and len(static) > 1:
@@ -2004,7 +2106,10 @@ class Model:
             self.render(views, references or [], folder=self.name + "_preview")
         preview = {"model": self.name, "preview": True, "objects": stats, "anchors": self.anchors,
                    "surfaces": [self.surface_notes[n] for n in self.materials], "plan": self.plan_data,
-                   "qc": {"construction": construction}, "geometry": self._geometry_hash()}
+                   "qc": {"construction": construction}, "links": self._links_spec(), "located": self.located,
+                   "features": self.feature_data}
+        preview.update(self._fingerprints())
+        del preview["asset"]   # no UVs or textures yet: a preview has a structure, not an asset
         with open(os.path.join(RENDER_DIR, self.name + "_preview", "spec.json"), "w", encoding="utf-8") as f:
             json.dump(preview, f, ensure_ascii=False, indent=2)
         log(f"{self.name}: preview, {len(self.parts)} parts, " + ", ".join(f"{s['name']} {s['triangles']} tris" for s in stats))
@@ -2027,7 +2132,7 @@ class Model:
         self.drop_unused_slots()
         self.validate(budget, total_budget)
         self._gate_overlaps(separate=not ao_together)
-        self._gate_construction(ground, separate=not ao_together, contact=contact)
+        self._gate_construction(ground, separate=not ao_together, contact=contact, views=views)
         if join and len(self.parts) > 1:
             self.parts = [self._join(self.parts, join)]
         self._gate_holes(ground, separate=not ao_together)
@@ -2094,7 +2199,7 @@ class Model:
         self.validate(budget, total_budget)
         # Parts that only overlap in the file (they are apart in game) are checked one by one
         self._gate_overlaps(separate=not ao_together)
-        self._gate_construction(ground, separate=not ao_together, contact=contact)
+        self._gate_construction(ground, separate=not ao_together, contact=contact, views=views)
         self._gate_holes(ground, separate=not ao_together)
         self._gate_joints(separate=not ao_together)
 
@@ -2339,7 +2444,9 @@ class Model:
     def _jitter_islands(obj, values, amount):
         """Varies the vertex colour (AO) values by a random multiplier per shell: every board a touch different in tone."""
         import random
-        rng = random.Random(hash(obj.name) & 0xFFFF)
+        import zlib
+        # crc32, not hash(): Python salts str hashes per process, so every build gave the boards new tones (22 October 2026)
+        rng = random.Random(zlib.crc32(obj.name.encode()) & 0xFFFF)
         bm = bmesh.new()
         bm.from_mesh(obj.data)
         bm.faces.ensure_lookup_table()
@@ -2484,6 +2591,7 @@ class Model:
                 "boundsMin": _vec([min(v[i] for v in verts) for i in range(3)]),
                 "boundsMax": _vec([max(v[i] for v in verts) for i in range(3)]),
                 "triangles": triangles,
+                "vertices": len(obj.data.vertices),
                 "closed": closed,
                 "foliage": obj.name in self.foliage,
                 "volume": round(volume, 9),
@@ -2546,12 +2654,12 @@ class Model:
             spec["tiled"] = True
         if self.plan_data:
             spec["plan"] = self.plan_data
+            spec["located"] = self.located
+        if self.feature_data:
+            spec["features"] = self.feature_data
         if self.routes or self.attachments:
-            spec["links"] = {"routes": [{"name": r["name"], "points": [_vec(to_unity(p)) for p in r["points"]],
-                                         "free": list(r["free"])} for r in self.routes],
-                             "attachments": [{"name": a["name"], "point": _vec(to_unity(a["point"]))}
-                                             for a in self.attachments]}
-        spec["geometry"] = self._geometry_hash()
+            spec["links"] = self._links_spec()
+        spec.update(self._fingerprints())
         path = os.path.join(SPEC_DIR, self.name + ".json")
         with open(path, "w", encoding="utf-8") as f:
             json.dump(spec, f, ensure_ascii=False, indent=2)
@@ -2561,19 +2669,57 @@ class Model:
     # Contact sheet views
     # ----------------------------------------------------------------------------------------------------------
 
-    def _geometry_hash(self):
-        """A short hash of the exported geometry (positions to 0.1 mm, faces, materials): a reviewed or approved model is
-        recognised as unchanged by it (tools/Verify.ps1)."""
-        digest = hashlib.sha1()
+    def _links_spec(self):
+        return {"routes": [{"name": r["name"], "points": [_vec(to_unity(p)) for p in r["points"]], "free": list(r["free"])}
+                           for r in self.routes],
+                "attachments": [{"name": a["name"], "point": _vec(to_unity(a["point"]))} for a in self.attachments]}
+
+    def _fingerprints(self):
+        """
+        Three hashes (tools/Review.py, tools/Verify.ps1):
+        - geometry: positions to 0.1 mm, faces, material slots;
+        - structure: geometry + the plan + the declared links + anchors. A review is valid while it is unchanged;
+        - asset: structure + every UV layer + the surfaces. With the textures (compared with a tolerance by Review.py,
+          because a bake may differ by noise) it is what the user approves.
+        """
+        geometry, uvs = self._geometry_hashes()
+        canon = json.dumps({"plan": self.plan_data, "links": self._links_spec(), "anchors": self.anchors,
+                            "features": [{k: v for k, v in f.items() if k != "measured"} for f in self.feature_data]},
+                           sort_keys=True)
+        structure = hashlib.sha1((geometry + canon).encode()).hexdigest()[:16]
+        digest = hashlib.sha1((structure + uvs).encode())
+        digest.update(json.dumps([self.surface_notes.get(n) for n in sorted(self.materials)], sort_keys=True).encode())
+        return {"geometry": geometry, "structure": structure, "asset": digest.hexdigest()[:16]}
+
+    def _geometry_hashes(self):
+        """
+        (geometry, uvs): short hashes of what the model is, independent of the order of vertices and faces and of how a
+        flat face is cut into triangles:
+        - geometry: per part, the set of vertex positions (0.1 mm) and, per material, the face count and area (mm²);
+        - uvs: per part and UV layer, the set of (corner position, UV) pairs.
+        23 October 2026: hashing vertices and faces in mesh order gave the calibration model a new hash at every build of
+        the same geometry, and the wheel cuts one quad along a different diagonal from build to build (the cause is not
+        found); either would have outdated every review and approval on a rebuild.
+        """
+        geometry, uvs = hashlib.sha1(), hashlib.sha1()
         for obj, _ in sorted(self.parts, key=lambda p: p[0].name):
-            digest.update(obj.name.encode())
             mw = obj.matrix_world
-            for v in obj.data.vertices:
-                digest.update(("%.4f %.4f %.4f;" % tuple(mw @ v.co)).encode())
+            corners = [tuple(int(round(c * 10000)) for c in (mw @ v.co)) for v in obj.data.vertices]
+            names = [m.name if m else "" for m in obj.data.materials]
+            per_material = {}
             for p in obj.data.polygons:
-                digest.update((",".join(map(str, p.vertices)) + f"/{p.material_index};").encode())
-            digest.update("|".join(m.name for m in obj.data.materials if m).encode())
-        return digest.hexdigest()[:16]
+                name = names[p.material_index] if p.material_index < len(names) else ""
+                count, area = per_material.get(name, (0, 0.0))
+                per_material[name] = (count + 1, area + p.area)
+            geometry.update(obj.name.encode())
+            geometry.update(repr(sorted(set(corners))).encode())
+            geometry.update(repr(sorted((n, c, round(a * 1e6)) for n, (c, a) in per_material.items())).encode())
+            for layer in sorted(obj.data.uv_layers, key=lambda layer: layer.name):
+                pairs = {(corners[obj.data.loops[i].vertex_index], tuple(int(round(c * 10000)) for c in layer.data[i].uv))
+                         for i in range(len(obj.data.loops))}
+                uvs.update((obj.name + layer.name).encode())
+                uvs.update(repr(sorted(pairs)).encode())
+        return geometry.hexdigest()[:16], uvs.hexdigest()[:16]
 
     def render(self, views, references, folder=None):
         """

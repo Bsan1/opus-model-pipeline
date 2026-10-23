@@ -51,6 +51,13 @@ model.plan(
         ("Line", "functional", "cuts the grass; out of the spool's two holes", ["Spool"], "spin", "seen"),
     ],
     supports=("hands",), tier="complex", category="machines")
+model.features([   # id, tier, components, what must hold, measured by, view
+    ("head_drive", "critical", ["Shaft", "Gearbox", "Head", "Spool", "Line"],
+     "the shaft enters the gearbox, the head carries the spool and the line leaves its two holes", None, "head"),
+    ("two_hands", "critical", ["Motor", "DHandle", "Shaft"],
+     "the rear hand on the body, the front hand on the D handle clamped across the shaft", None, "handle"),
+    ("battery", "important", ["Battery", "Motor"], "the battery sits in the body's back with its latch", None, "back"),
+])
 
 
 def plastic(name, rgb, finish, note, **look):

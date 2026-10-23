@@ -71,6 +71,12 @@ model.plan(
         ("Sill", "functional", "sheds the water under the window", ["Casings"], "fixed", "seen"),
     ],
     supports=("ground",), tier="complex", category="buildings")
+model.features([   # id, tier, components, what must hold, measured by, view
+    ("doors_hung", "critical", ["DoorLeaves", "Hinges", "Casings"],
+     "each door leaf hangs on its hinges, fixed to the casing, with a handle to pull it", None, "door"),
+    ("roof_sheds_rain", "important", ["Shingles", "Sheathing", "RakeBoards", "Fascia"],
+     "shingles lap in two layers over the sheathing and overhang the rake and the fascia", None, "eave"),
+])
 SIDING = model.surface("Siding", "#849CA4", "matte", "Siding: painted wooden lap boards, blue-green-grey (#7B8489 in the video; "
                        "base shifted to green so the game's purple sky light does not turn it purple); matte, wood grain under the paint", material="rough_boards")
 TRIM = model.surface("Paint", "#DADCE0", "matte", "Corner, rake and fascia boards, casings, sill, door leaves: white painted wood, "

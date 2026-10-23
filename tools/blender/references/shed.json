@@ -1,0 +1,33 @@
+{
+  "model": "shed",
+  "note": "Landmarks picked by hand on the frame (pixels, 848 x 478) and their model points (Unity axes, from shed.py's sizes). The west face is on the image's left, the front (door) face on the right.",
+  "comparisons": [
+    {
+      "name": "front_0_16",
+      "frame": "docs/reference/28_shed_front.png",
+      "landmarks": [
+        {"id": "front_left_bottom", "image": [410.0, 298.3], "model": [-1.33, 0.0, -1.33]},
+        {"id": "front_left_top", "image": [416.7, 136.0], "model": [-1.33, 2.2, -1.33]},
+        {"id": "front_right_bottom", "image": [550.0, 278.3], "model": [1.33, 0.0, -1.33]},
+        {"id": "front_right_top", "image": [553.3, 146.7], "model": [1.33, 2.2, -1.33]},
+        {"id": "door_top_left", "image": [442.7, 136.7], "model": [-0.95, 2.10, -1.35]},
+        {"id": "door_top_right", "image": [540.0, 146.0], "model": [0.95, 2.10, -1.35]},
+        {"id": "door_bottom_left", "image": [445.0, 295.0], "model": [-0.95, 0.0, -1.35]},
+        {"id": "door_bottom_right", "image": [536.7, 283.3], "model": [0.95, 0.0, -1.35]},
+        {"id": "window_top_back", "image": [356.0, 169.3], "model": [-1.33, 1.82, 0.37]},
+        {"id": "window_top_front", "image": [381.0, 167.7], "model": [-1.33, 1.82, -0.37]},
+        {"id": "window_bottom_back", "image": [356.7, 228.3], "model": [-1.33, 0.84, 0.37]},
+        {"id": "window_bottom_front", "image": [381.0, 230.0], "model": [-1.33, 0.84, -0.37]},
+        {"id": "back_left_top", "image": [345.0, 161.7], "model": [-1.33, 2.2, 1.33]}
+      ],
+      "segments": [
+        ["door_top_left", "door_top_right", "door width"],
+        ["door_top_left", "door_bottom_left", "door height"],
+        ["window_top_back", "window_top_front", "window width"],
+        ["window_top_back", "window_bottom_back", "window height"],
+        ["front_left_bottom", "front_right_bottom", "front wall width"],
+        ["front_left_bottom", "front_left_top", "wall height"]
+      ]
+    }
+  ]
+}

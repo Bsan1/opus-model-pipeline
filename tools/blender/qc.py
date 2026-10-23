@@ -371,14 +371,18 @@ class ShellMap:
         return hit[3] if hit and hit[0] is not None else float("inf")
 
 
-def connectivity(objects, tol=0.003, spacing=0.05, ground=None, seed=7):
+def connectivity(objects, tol=0.003, spacing=0.05, ground=None, seed=7, supports=None):
     """
     Contact graph of the shells: two shells are joined when their triangles intersect (one runs into the other) or a sample
     point of one (its vertices, every triangle's centre and points every `spacing` metres over larger triangles) lies within
     `tol` of the other (one rests on the other); with `ground` (world z) a shell
-    reaching z <= ground + tol stands on the ground. A model should be ONE assembly: every shell held by the others or by
-    the ground. Returns {shells, components, stray: [{object, shells, triangles, unity, size_mm}]}: the stray components
-    are everything outside the main one (the one on the ground, else the biggest).
+    reaching z <= ground + tol stands on the ground; `supports` [(point, tol)] are where something outside holds it (hands,
+    a branch, the wheels). A model should be ONE assembly held by its supports: the main component is everything joined to
+    the ground or a support; all else is stray. With no ground and no supports the biggest component is taken (nothing to
+    test the hold against). If there are supports but nothing touches them, the whole model floats: every component is
+    stray and `floating` says how high it is (22 October 2026: before, the biggest component counted as held, so a whole
+    object floating above the ground passed).
+    Returns {shells, components, stray: [{object, shells, triangles, unity, size_mm}], floating}.
     """
     m = ShellMap(objects)
     parent = list(range(m.count + 1))   # the last node is the ground
@@ -428,12 +432,23 @@ def connectivity(objects, tol=0.003, spacing=0.05, ground=None, seed=7):
                 if other != shell:
                     union(shell, other)
 
+    for point, reach in supports or ():
+        for shell in m.near(point, reach):
+            union(ground_node, shell)
+
     groups = {}
     for s in range(m.count):
         groups.setdefault(find(s), []).append(s)
     root_ground = find(ground_node)
+    floating = None
     if root_ground in groups:
         main = root_ground
+    elif ground is not None or supports:
+        main = None
+        low = min((v.z for v in m.verts), default=0.0)
+        floating = (f"nothing touches the ground or a declared support: the whole model is held by nothing (lowest point "
+                    f"{(low - (ground or 0.0)) * 1000:.0f} mm above the ground)" if ground is not None else
+                    "nothing touches a declared support: the whole model is held by nothing")
     else:
         main = max(groups, key=lambda r: sum(tris[s] for s in groups[r])) if groups else None
     stray = []
@@ -446,37 +461,61 @@ def connectivity(objects, tol=0.003, spacing=0.05, ground=None, seed=7):
                       "triangles": sum(tris[s] for s in members), "unity": _unity((a + b) * 0.5),
                       "size_mm": [round(abs(c) * 1000) for c in (b - a)]})
     stray.sort(key=lambda s: -s["triangles"])
-    return {"shells": m.count, "components": len(groups), "stray": stray}
+    return {"shells": m.count, "components": len(groups), "stray": stray, "floating": floating}
 
 
-def check_links(objects, routes, attachments):
+def check_links(objects, routes, attachments, supports=()):
     """
-    routes: [{"name", "points": [Blender xyz], "tol", "free": [indices of points on things outside the model]}]: one shell
-    (the cable, rope or pipe) must pass within tol of every point, and at every end that is not free touch another shell.
-    attachments: [{"name", "point", "tol"}]: at least two shells meet within tol of the point (a hinge, a clip, a bracket).
+    routes: [{"name", "points": [Blender xyz], "tol", "free": [indices of points on things outside the model], "part",
+    "ends"}]: one shell (the cable, rope or pipe; of `part` when given) must pass within tol of every point, and at every
+    end that is not free touch another shell (of the part named in `ends` when given).
+    attachments: [{"name", "point", "tol", "parts"}]: two shells meet within tol of the point (a hinge, a clip, a bracket);
+    with `parts`, one of each of those two parts (22 October 2026: before, any two nearby pieces satisfied it).
+    supports: [{"name", "points", "tol"}]: every point touches the model.
     Returns the failures as readable strings (empty: all hold).
     """
     m = ShellMap(objects)
     problems = []
+
+    def owners(shells):
+        return {m.shell_object[s] for s in shells}
+
     for route in routes:
         tol = route["tol"]
         sets = [m.near(p, tol) for p in route["points"]]
         common = set.intersection(*sets) if sets else set()
+        if route.get("part"):
+            common = {s for s in common if m.shell_object[s] == route["part"]}
         if not common:
-            far = [f"point {i} {_unity(Vector(p))}: nearest surface {m.distance(p) * 1000:.1f} mm, shells near {len(s)}"
+            far = [f"point {i} {_unity(Vector(p))}: nearest surface {m.distance(p) * 1000:.1f} mm, near {sorted(owners(s))}"
                    for i, (p, s) in enumerate(zip(route["points"], sets))]
-            problems.append(f"route '{route['name']}': no single piece passes within {tol * 1000:.0f} mm of all its "
-                            f"points ({'; '.join(far)})")
+            problems.append(f"route '{route['name']}': no single piece{' of ' + route['part'] if route.get('part') else ''} "
+                            f"passes within {tol * 1000:.0f} mm of all its points ({'; '.join(far)})")
             continue
-        for i in (0, len(route["points"]) - 1):
+        for k, i in enumerate((0, len(route["points"]) - 1)):
             if i in route.get("free", ()):
                 continue
-            if not (sets[i] - common):
+            touched = sets[i] - common
+            want = route["ends"][k] if route.get("ends") else None
+            if want and want not in owners(touched):
+                problems.append(f"route '{route['name']}': its end {i} at {_unity(Vector(route['points'][i]))} does not "
+                                f"touch {want} (touches {sorted(owners(touched)) or 'nothing'})")
+            elif not touched:
                 problems.append(f"route '{route['name']}': its end {i} at {_unity(Vector(route['points'][i]))} touches "
                                 f"nothing within {tol * 1000:.0f} mm (it ends in mid-air)")
     for attachment in attachments:
         found = m.near(attachment["point"], attachment["tol"])
-        if len(found) < 2:
-            problems.append(f"attachment '{attachment['name']}' at {_unity(Vector(attachment['point']))}: "
-                            f"{len(found)} piece(s) within {attachment['tol'] * 1000:.0f} mm, needs two that meet")
+        where = f"attachment '{attachment['name']}' at {_unity(Vector(attachment['point']))}"
+        if attachment.get("parts"):
+            missing = [p for p in attachment["parts"] if p not in owners(found)]
+            if missing:
+                problems.append(f"{where}: {', '.join(missing)} not within {attachment['tol'] * 1000:.0f} mm "
+                                f"(there: {sorted(owners(found)) or 'nothing'})")
+        elif len(found) < 2:
+            problems.append(f"{where}: {len(found)} piece(s) within {attachment['tol'] * 1000:.0f} mm, needs two that meet")
+    for support in supports:
+        for i, point in enumerate(support["points"]):
+            if not m.near(point, support["tol"]):
+                problems.append(f"support '{support['name']}' point {i} at {_unity(Vector(point))} touches nothing "
+                                f"within {support['tol'] * 1000:.0f} mm (nearest {m.distance(point) * 1000:.0f} mm)")
     return problems

@@ -42,11 +42,13 @@ model.plan(
     "push mower: cuts the grass while the player pushes it from behind by the handle",
     [("video", "0:02, 0:46, 1:12 (seen only from behind and above)")],
     [   # name, role, job, attached to, moves, seen/guess/real
-        ("Wheels", "functional", "roll the mower (wheel.fbx on the axle pins)", ["ground", "Axles"], "spin", "seen"),
-        ("Axles", "structural", "pins the wheels turn on", ["WheelPlates"], "fixed", "guess"),
+        ("Axles", "structural", "pins the wheels turn on (the wheels are wheel.py's model)", ["WheelPlates", "wheels"],
+         "fixed", "guess"),
         ("WheelPlates", "structural", "carry the axles, bolted to the deck", ["Deck"], "fixed", "guess"),
         ("Deck", "structural", "red deck: shields the blade, carries the engine", ["WheelPlates"], "fixed", "seen"),
-        ("RearBody", "structural", "stepped rear body and flap behind the deck", ["Deck"], "fixed", "seen"),
+        ("RearBody", "structural", "stepped rear body behind the deck", ["Deck"], "fixed", "seen"),
+        ("RearFlap", "functional", "dark red flap over the rear discharge, hinged on a pin across the body", ["RearBody"],
+         "hinge", "seen"),
         ("Engine", "functional", "drives the blade; block, fuel tank and carburettor under the cover (never seen)", ["Deck"],
          "fixed", "guess"),
         ("EngineCover", "structural", "dark grey cover: ridge, two hollows, a lip", ["Engine"], "fixed", "seen"),
@@ -67,7 +69,18 @@ model.plan(
         ("Clips", "structural", "hold the cable to the tubes, the rear body and the deck", ["LowerTubes", "UpperTube", "RearBody"],
          "fixed", "guess"),
     ],
-    supports=("ground", "hands"), tier="complex", category="machines")
+    supports=("wheels", "hands"), tier="complex", category="machines")
+model.features([   # id, tier, components, what must hold, measured by, view
+    ("control_chain", "critical", ["ControlBar", "ControlCable", "Clips", "BrakeTab"],
+     "the bar's tab, the cable clipped down the handle and the engine's brake tab form one chain", "route:ControlCable",
+     "handle_top"),
+    ("on_wheels", "critical", ["Axles", "WheelPlates"], "four axle pins in plates bolted to the deck carry the wheels",
+     "support:wheels", "cable"),
+    ("push_grip", "critical", ["Foam", "ControlBar"], "the hands push the foam grip and hold the bar against it",
+     "support:hands", "handle_top"),
+    ("starter", "important", ["Starter"], "the recoil starter's handle rests at its guide on the engine, no loose rope",
+     None, "motor"),
+])
 RED = model.surface("Metal", "#C21F22", "glossy", "Housing: red baked-paint sheet metal; thin bright lines on the dome and the edges in the video")
 RED_DARK = model.surface("Metal", "#8F1A1F", "glossy", "Rear flap: the same painted sheet metal as the housing, dark red; a dark red area on top of the rear body in the video")
 SHROUD = model.surface("Plastic", "#2F2E31", "matte", "Engine cover: textured black plastic; no highlights in the video, only the upward faces are light")
@@ -392,7 +405,7 @@ def build_handle():
     om.sweep(bm, om.spline(points, 8), 0.0032, 8, material=4)
     # Measured at finish: the cable leaves the bar's tab, passes both body clips and ends in the brake tab
     model.route("ControlCable", [points[0], V(0.206, 0.2136, -0.25), V(0.15, 0.1725, -0.172), points[-1]], tol=0.007,
-                unity=True)
+                unity=True, part="Handle", ends=("Handle", "Motor"))
     # The clips holding the cable to the rear body and the deck
     om.box(bm, (0.199, 0.2104, -0.256), (0.213, 0.219, -0.244), material=2)
     om.box(bm, (0.143, 0.1665, -0.178), (0.157, 0.1775, -0.166), material=2)
@@ -419,6 +432,10 @@ for side, label in ((1.0, "Right"), (-1.0, "Left")):
     model.anchor(f"Handle_{label}", mirror(GRIP, side))
     model.anchor(f"Axle_Front_{label}", mirror(FRONT_AXLE, side))
     model.anchor(f"Axle_Rear_{label}", mirror(REAR_AXLE, side))
+# What holds the mower from outside: the wheels (wheel.py) on the four axle pins, the hands on the grips
+model.support("wheels", [mirror(a, s) for a in (FRONT_AXLE, REAR_AXLE) for s in SIDES], tol=0.02, unity=True,
+              component="Axles")
+model.support("hands", [mirror(GRIP, s) for s in SIDES], tol=0.03, unity=True, component="Foam")
 
 # Show the wheels in the views too (render only; not exported)
 bpy.ops.import_scene.fbx(filepath=os.path.join(om.FBX_DIR, "wheel.fbx"))

@@ -48,6 +48,15 @@ model.plan(
         ("Stripe", "decorative", "black stripe on the yellow body, as in the video", ["YellowBody"], "fixed", "seen"),
     ],
     supports=("hands",), tier="complex", category="machines")
+model.features([   # id, tier, components, what must hold, measured by, view
+    ("trigger_hinge", "critical", ["Trigger", "YellowBody"],
+     "the rear trigger turns on its joint under the yellow body and moves towards the grip when squeezed",
+     "attach:TriggerHinge", "side"),
+    ("palm_grip", "critical", ["Grip", "Trigger"], "the palm closes round the grip with the trigger behind it",
+     "support:hands", "side"),
+    ("water_path", "important", ["Coupling", "Grip", "YellowBody", "Neck", "Head"],
+     "a continuous path hose -> coupling -> grip -> body -> neck -> head, no gap", None, "side"),
+])
 GREEN = model.moulded_surface("green", (24, 112, 60), "matte", "Head, neck, grip: green plastic; no shine in the video (user: 'no "
                               "shiny material in the video')", rough=0.72, grain=0.08)
 YELLOW = model.moulded_surface("yellow", (198, 182, 90), "matte", "Yellow body and rear trigger: mustard-yellow plastic, matte",
@@ -180,7 +189,9 @@ model.part("Body", build_body(), [GREEN, YELLOW, BLACK, RING, MARK, HOLES, METAL
 model.part("Trigger", build_trigger(), [YELLOW, BLACK], unity=True, location=(HINGE.x, HINGE.y, HINGE.z),
            bevel={"width": 0.001, "segments": 1, "angle": 35.0})
 model.anchor("Joint", HINGE)
-model.attach("TriggerHinge", HINGE, tol=0.004, unity=True)   # measured at finish: the trigger and the body meet at the joint
+# Measured at finish: the trigger and the body meet at the joint; the palm holds the grip
+model.attach("TriggerHinge", HINGE, tol=0.004, unity=True, parts=("Body", "Trigger"), component="Trigger")
+model.support("hands", [GRIP_TOP, GRIP_BOTTOM], tol=0.03, unity=True, component="Grip")
 model.anchor("Nozzle", V(0, 0, 0))
 model.anchor("HeadBack", V(0, 0, HEAD_BACK))
 model.anchor("Knob", V(0, 0, KNOB_BACK))

@@ -1,0 +1,79 @@
+{
+  "model": "house",
+  "pack": "88946e6341e6",
+  "stage": "final",
+  "structure": "eb00908bcf36ec19",
+  "basis": {
+    "plan": "0605a3a89168afa8",
+    "links": "507f909404ecfdf2",
+    "features": "e8bbde78d980da0b",
+    "bounds": [
+      -8.62,
+      -0.05,
+      -8.425,
+      8.62,
+      9.726,
+      6.5
+    ],
+    "shells": 3981
+  },
+  "reviewer": "claude-sonnet",
+  "date": "2026-10-22",
+  "findings": [
+    {
+      "severity": "low",
+      "confidence": "low",
+      "component": "PorchPosts",
+      "problem": "The porch posts stand on the decking surface, so the roof load would bear on deck boards instead of going down through a joist or post to the ground.",
+      "evidence": "Plan line PorchPosts -> Decking; the 'Deck: railing, lattice, step' close-up shows the post base sitting on the boards, with no visible blocking or footing.",
+      "fix": "Land each porch post on a rim joist or a doubled joist, or on a block that runs through the decking to a skirt post or footing, and cut the decking around the post base.",
+      "id": "F1",
+      "status": "open",
+      "decided": ""
+    },
+    {
+      "severity": "low",
+      "confidence": "low",
+      "component": "Downspouts",
+      "problem": "The downspout is about 6 m long and shows no straps or brackets, so it looks held only at the gutter end.",
+      "evidence": "'Eave corner: gutter, downspout' close-up: a plain tube from the elbow down the wall with no bands.",
+      "fix": "Add two or three thin strap bands, rose-brown like the pipe, that wrap the pipe and touch the wall or corner board at roughly 1.5 m spacing.",
+      "id": "F2",
+      "status": "open",
+      "decided": ""
+    },
+    {
+      "severity": "low",
+      "confidence": "low",
+      "component": "Windows",
+      "problem": "The sliding double sashes show no latch or meeting-rail hardware, so the windows read as fixed glass in a casing.",
+      "evidence": "'Upper floor window' and 'Ground floor window sill' close-ups show only the casing and a plain meeting rail.",
+      "fix": "Add a small sash latch on the meeting rail, or accept that the windows are not meant to be used.",
+      "id": "F3",
+      "status": "open",
+      "decided": ""
+    }
+  ],
+  "features": [
+    {
+      "id": "stairs_carried",
+      "verdict": "unverified",
+      "evidence": "Only the front of the step is visible in 'Deck: railing, lattice, step'. The stringers, their notches and the deck-frame connection are hidden from every view."
+    },
+    {
+      "id": "deck_carried",
+      "verdict": "unverified",
+      "evidence": "The lattice skirt hides the posts and the joists, and the wall ledger is not visible in any view, so the support under the deck cannot be judged from the renders."
+    },
+    {
+      "id": "porch_roof_carried",
+      "verdict": "pass",
+      "evidence": "The garden facade view and the 'Deck' and 'Doors and porch' close-ups show the porch roof meeting the wall at its high side, with white posts under a beam at the front edge."
+    },
+    {
+      "id": "downspouts",
+      "verdict": "unverified",
+      "evidence": "The 'Eave corner' close-up shows the gutter ending in an elbow and a downspout running down the wall. The lower end and the splash block are out of frame in every view, so the 'ends over a splash block' part cannot be seen."
+    }
+  ]
+}

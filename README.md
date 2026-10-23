@@ -42,7 +42,9 @@ Unity (unity/) ── ModelImport fixes import settings, ModelImportTests compar
 | `tools/Models.ps1` | **Runs Blender in the background**. Use it for one model (`-Only house`), every model, or the checks (`-Checks`). It also draws the contact sheets. |
 | `tools/Verify.ps1` | **The one command to verify everything.** It rebuilds only models whose inputs changed, runs up to 3 builds in parallel, and prints one line per model and per step. |
 | `tools/Board.py` | **Puts many screenshots or crops on one labelled image**, so they can be reviewed in one look. |
-| `tools/Review.py` | **The independent plausibility review's pack and record.** `pack` writes one image plus a brief; `record` checks the reviewer's findings and stores them in `tools/blender/reviews/<model>.json`; `status` and `carry` maintain them. |
+| `tools/Review.py` | **The independent plausibility review and the approval state.** `pack` writes one image, a brief and a manifest (pack id, hashes); `record` accepts only findings that name this pack and only if its files did not change; `carry` moves a preview review to the final build only when its structure demonstrably did not change; `approve` and `state` keep the user's approval apart from reviews. |
+| `tools/Compare.py`, `tools/blender/compare_render.py`, `tools/blender/references/` | **Measured comparison with a reference frame.** It solves the frame's camera from landmarks picked by hand and reports the alignment, each landmark's leave-one-out error and each segment's length ratio. It renders an overlay. Advisory unless aligned. |
+| `tools/tests/` | **Tests of the review, approval and comparison logic**, plain Python, no Blender: `py -3 -m unittest discover -s tools/tests`. |
 | `.claude/skills/model-plausibility/` | **How to plan and review a model** (a Claude Code skill; readable by anyone): principles, a guidance file per category (`machines`, `suspended`, `buildings`, `organic`), `lessons.md` (past mistakes as general rules) and `review.md` (the reviewer's instructions and output format). |
 | `tools/blender/reviews/`, `tools/blender/approvals.json` | **Decision records:** what a reviewer found, and which geometry the user approved. Keyed by the model's geometry hash. |
 | `tools/Assets.ps1` | **Searches and fetches licence-checked free assets** through the separate `free-assets` tool. Optional. |
@@ -224,7 +226,7 @@ Every gate is a hard failure that prints numbers. Every defect that someone spot
 | Validation | `Model.validate` | Open edges, inside-out shells, zero-area faces, loose vertices, wrong material names, over the triangle budget |
 | Z-fighting | `om.coplanar_overlaps` | Overlapping faces in one plane facing the same way. The model must have 0. |
 | Holes | `qc.audit_holes` | A back face seen first from outside, as Unity draws it (back faces culled). Hundreds of close cameras (0.25–1.6 m) cast rays. A camera counts only where it can see the sky. An edge graze is confirmed with rays shifted 0.1 mm. The model must have 0. |
-| Construction | `qc.connectivity`, `qc.check_links` | A piece held by nothing: neither intersecting nor within 3 mm of another piece or the ground. Leaves and `part(free=True)` are exempt. A declared `route` (a cable, rope or pipe) that does not reach every point or ends in mid-air. A declared `attach` point where two pieces do not meet. |
+| Construction | `qc.connectivity`, `qc.check_links` | A piece not joined (intersecting or within 3 mm) to an assembly held by the ground or by a declared `support` (hands, a branch, the wheels). A whole object floating above the ground fails. A plan support never located. Leaves and `part(free=True)` are exempt. A declared `route` whose piece (of `part`) does not reach every point or whose ends do not touch the named parts. A declared `attach` point where the two named parts do not meet. |
 | Joints | `qc.joint_audit` | A member's end that crosses the face it meets at 3–60°, poking through or leaving a wedge. Lapped parallel boards and chamfers are not counted. |
 | Texels | `qc.texel_audit` | Atlas models only: a face over 1 cm² that gets less than 1.5 atlas px across its narrow side. Faces below the ground are ignored. |
 | Rope audit | `models/tire_swing.py` | Rope-to-rope distance under 1.9 R, a bend under 0.75 D, the loop not touching the tyre |
@@ -251,9 +253,9 @@ A model can pass every gate and still make no sense: a rope tied wrong, a cable 
 
 | | What | Who decides |
 |---|---|---|
-| **Measured** | Plan check (every component attached to something, a load path to a support), construction gate, routes and attachments, rope audit | The build: pass or fail |
-| **Judged** | The independent review of complex models: findings with severity, confidence, evidence and a fix | Recorded; confident findings are fixed, doubtful ones are put to the user |
-| **Approved** | The user's approval of a model's exact geometry | The user (`Verify.ps1 -Approve`) |
+| **Measured** | Plan check (every component attached to something, a load path to a support), construction gate, supports, routes and attachments, rope audit, measured critical features, the reference comparison (advisory unless aligned) | The build: pass or fail |
+| **Judged** | The independent review of complex models: findings with severity, confidence, evidence and a fix, and a verdict (pass, fail, unverified) on every critical and important feature | Recorded against the reviewed structure; confident findings are fixed, doubtful ones are put to the user |
+| **Approved** | The user's approval of the asset (geometry, UVs, plan, surfaces, textures within bake noise) | The user (`Verify.ps1 -Approve`). An approved model with an open serious finding or a critical feature unverified or failing is shown but not counted as clean |
 
 The workflow depends on the tier.
 - A **simple** model (few parts, nothing moving or hanging) gets a short plan, the gates and one look at the sheet.
@@ -266,7 +268,9 @@ The workflow depends on the tier.
   6. Unity checks;
   7. the user's approval.
 
-The review never runs inside a build. Any vision-capable model can be the reviewer: the pack is one image plus `brief.md`, and the output format is in `.claude/skills/model-plausibility/review.md`.
+The review never runs inside a build. Any vision-capable model can be the reviewer: the pack is one image plus `brief.md`, and the output format is in `.claude/skills/model-plausibility/review.md`. Measured on the mower: 65k tokens, 5 tool calls and 60 s per review with the bounded prompt; the first, unbounded trial cost 91k, 20 and 225 s.
+
+**Critical features** (`model.features`) name the few relationships that make an object what it is, such as the mower's control chain or the swing's branch hitch. A convincing whole does not count as acceptance: an unobserved critical feature is unverified, not passed.
 
 The modelling rules that came out of this work live in that skill, so they exist in one place:
 - the general principles in `SKILL.md`;

@@ -28,20 +28,28 @@ Check each of these against the renders:
 - Do not give generic art critique or taste in colour, texture or style.
 - Do not re-check what the gates already measured (z-fighting, holes, joint angles, floating pieces, declared routes), unless the renders show clear evidence against the numbers.
 - Do not invent problems to fill the list. An empty list is a valid result.
+- Do not report again what the brief lists under "Already decided".
 
 ## Output
 
-Write a JSON file. List at most 8 findings, most severe first.
+Write a JSON file. List at most 8 findings, most severe first. Copy the pack id from the brief: findings without it, or with another pack's id, are refused. If the brief lists features, give a verdict on **every** one:
+- `pass`: the renders show it holds;
+- `fail`: they show it does not;
+- `unverified`: no view shows it clearly. Never use `pass` for something you cannot see.
 
 ```json
-{"findings": [
+{"pack": "<the pack id from the brief>",
+ "findings": [
   {"severity": "high | medium | low",
    "confidence": "high | low",
    "component": "the plan's component name (or the closest part)",
    "problem": "what is wrong, in one sentence",
    "evidence": "which view or plan line shows it",
    "fix": "a concrete correction"}
-]}
+ ],
+ "features": [
+  {"id": "<feature id>", "verdict": "pass | fail | unverified", "evidence": "which view shows it"}
+ ]}
 ```
 
 **Severity:**

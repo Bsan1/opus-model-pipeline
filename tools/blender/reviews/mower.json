@@ -1,43 +1,84 @@
 {
   "model": "mower",
-  "geometry": "129b6e9913a4a883",
+  "pack": "731d5761e71f",
   "stage": "preview",
+  "structure": "3c53b2fb2df268b3",
+  "basis": {
+    "plan": "32cfa4ddd045d184",
+    "links": "7c722423e0abeb4e",
+    "features": "97d170e1550eee4a",
+    "bounds": [
+      -0.3839,
+      0.04,
+      -1.0535,
+      0.3838,
+      0.9032,
+      0.3487
+    ],
+    "shells": 56
+  },
   "reviewer": "claude-sonnet",
   "date": "2026-10-22",
   "findings": [
     {
-      "severity": "medium",
-      "confidence": "high",
-      "component": "FuelCap / PrimerBulb",
-      "problem": "The fuel cap and the primer bulb have no counterpart: the plan has no fuel tank and no carburettor, so a cap and a bulb sit in the cover's hollows over nothing.",
-      "evidence": "Plan table: FuelCap 'closes the fuel tank' and PrimerBulb 'primes the carburettor', both attached only to EngineCover; Engine is just 'the block under the cover'; the generator's Motor list is block, cover, grille, fuel cap, primer bulb, starter. Engine cover close-up and the player's-side view show the knurled cap and the dome in the rear hollows.",
-      "fix": "Add a fuel tank under the left hollow (the cap's neck goes into it) and a small carburettor and line under the right hollow (the bulb connects to it), attached to Engine, and name them in the plan; otherwise remove the two fittings.",
+      "severity": "low",
+      "confidence": "low",
+      "component": "ControlCable / Clips",
+      "problem": "A thin dark rod with a small round fitting at each end spans the full width of the rear body between the two handle bases, which reads either as a cable crossing the whole body (when only one tube carries it) or as an unlisted cross brace.",
+      "evidence": "View 'From the player's side (from behind and above)': horizontal dark line with knobs across the red rear body above the plate; the plan lists only one cable route and no cross member or rear axle there.",
+      "fix": "If it is the cable, route it down one tube only, clip it along that side of the rear body and onto the deck toward the brake tab, and drop the span across the full width. If it is a cross brace, add it to the plan as a LowerTubes member bolted to both tubes.",
       "id": "F1",
       "status": "fixed",
       "decided": "auto",
-      "note": "plan corrected: the cap and bulb attach to the engine (tank neck, carburettor under the cover); the inside is never seen, so no hidden geometry was added"
-    },
+      "note": "verified in mower.py: the rod is the rear flap's hinge pin (26 cm); the plan now lists RearFlap (hinge)"
+    }
+  ],
+  "features": [],
+  "history": [
     {
-      "severity": "medium",
-      "confidence": "low",
-      "component": "Engine / Deck",
-      "problem": "The plan says the engine drives the blade and the deck shields the blade, but no blade, shaft or cutting element exists in the plan or the notes, so the machine as listed cannot cut the grass.",
-      "evidence": "Plan lines Engine 'drives the blade' and Deck 'shields the blade'; no Blade or crankshaft row; the front 3/4 view (a guess) shows a closed skirt and no underside.",
-      "fix": "Add a Blade (and shaft/hub) under the deck, attached to the Engine, with ground clearance inside the skirt; or, if the underside is never seen in game, reword the Deck and Engine jobs so they do not name a missing part.",
-      "id": "F2",
-      "status": "open",
-      "decided": ""
-    },
-    {
-      "severity": "low",
-      "confidence": "low",
-      "component": "Starter",
-      "problem": "The rope handle is a bare C-shaped ring lying on the silver starter cover, with no visible rope or rope eyelet, so it suggests a pull function it does not visibly connect to.",
-      "evidence": "Engine cover close-up and the right handle-base view: a black arc on top of the silver disc, with no rope or guide leaving it.",
-      "fix": "Add a short rope from the handle into an eyelet in the starter cover, and put the handle at that eyelet.",
-      "id": "F3",
-      "status": "open",
-      "decided": ""
+      "model": "mower",
+      "geometry": "129b6e9913a4a883",
+      "stage": "preview",
+      "reviewer": "claude-sonnet",
+      "date": "2026-10-22",
+      "findings": [
+        {
+          "severity": "medium",
+          "confidence": "high",
+          "component": "FuelCap / PrimerBulb",
+          "problem": "The fuel cap and the primer bulb have no counterpart: the plan has no fuel tank and no carburettor, so a cap and a bulb sit in the cover's hollows over nothing.",
+          "evidence": "Plan table: FuelCap 'closes the fuel tank' and PrimerBulb 'primes the carburettor', both attached only to EngineCover; Engine is just 'the block under the cover'; the generator's Motor list is block, cover, grille, fuel cap, primer bulb, starter. Engine cover close-up and the player's-side view show the knurled cap and the dome in the rear hollows.",
+          "fix": "Add a fuel tank under the left hollow (the cap's neck goes into it) and a small carburettor and line under the right hollow (the bulb connects to it), attached to Engine, and name them in the plan; otherwise remove the two fittings.",
+          "id": "F1",
+          "status": "fixed",
+          "decided": "auto",
+          "note": "plan corrected: the cap and bulb attach to the engine (tank neck, carburettor under the cover); the inside is never seen, so no hidden geometry was added"
+        },
+        {
+          "severity": "medium",
+          "confidence": "low",
+          "component": "Engine / Deck",
+          "problem": "The plan says the engine drives the blade and the deck shields the blade, but no blade, shaft or cutting element exists in the plan or the notes, so the machine as listed cannot cut the grass.",
+          "evidence": "Plan lines Engine 'drives the blade' and Deck 'shields the blade'; no Blade or crankshaft row; the front 3/4 view (a guess) shows a closed skirt and no underside.",
+          "fix": "Add a Blade (and shaft/hub) under the deck, attached to the Engine, with ground clearance inside the skirt; or, if the underside is never seen in game, reword the Deck and Engine jobs so they do not name a missing part.",
+          "id": "F2",
+          "status": "dismissed",
+          "decided": "user",
+          "note": "the blade is under the deck, never seen in game"
+        },
+        {
+          "severity": "low",
+          "confidence": "low",
+          "component": "Starter",
+          "problem": "The rope handle is a bare C-shaped ring lying on the silver starter cover, with no visible rope or rope eyelet, so it suggests a pull function it does not visibly connect to.",
+          "evidence": "Engine cover close-up and the right handle-base view: a black arc on top of the silver disc, with no rope or guide leaving it.",
+          "fix": "Add a short rope from the handle into an eyelet in the starter cover, and put the handle at that eyelet.",
+          "id": "F3",
+          "status": "dismissed",
+          "decided": "user",
+          "note": "the starter rope is wound inside; the handle rests at the guide"
+        }
+      ]
     }
   ]
 }

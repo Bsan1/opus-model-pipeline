@@ -98,6 +98,7 @@ namespace Opus.Tests
             public Vector3 boundsMin;
             public Vector3 boundsMax;
             public int triangles;
+            public int vertices;
             public bool closed;
             public bool foliage;
             public float volume;
@@ -641,6 +642,35 @@ namespace Opus.Tests
             Assert.AreEqual(0.5f, scaled.Scale, 1e-6f);
             foreach (string bad in new[] { "Plastic_2F2E31", "Plastic_2F2E31_polished", "Plastic_matte" })
                 Assert.IsFalse(ModelLibrary.TryParseModelMaterial(bad, out _, out _), bad);
+        }
+
+        /// <summary>
+        /// What each model costs once imported, measured, not judged (22 October 2026, after the delivery checks of
+        /// blender-game-skills: UV and normal seams split vertices, so Unity's vertex count is not Blender's). Writes
+        /// Builds/QC/delivery.json (tools/Verify.ps1 prints one line from it); asserts only that every part was measured.
+        /// No thresholds and no LODs until a measured frame time asks for them.
+        /// </summary>
+        [Test]
+        public void DeliveryCostsAreMeasured()
+        {
+            var rows = new List<string>();
+            foreach (string model in Models())
+            {
+                Spec spec = LoadSpec(model);
+                Transform root = LoadModel(model).transform;
+                foreach (ObjectSpec o in spec.objects)
+                {
+                    Mesh mesh = root.Find(o.name).GetComponent<MeshFilter>().sharedMesh;
+                    Assert.IsNotNull(mesh, $"{model}/{o.name}: no mesh");
+                    rows.Add($"{{\"model\": \"{model}\", \"part\": \"{o.name}\", \"triangles\": {mesh.triangles.Length / 3}, " +
+                             $"\"blenderVertices\": {o.vertices}, \"unityVertices\": {mesh.vertexCount}, " +
+                             $"\"drawCalls\": {mesh.subMeshCount}, \"index32\": {(mesh.indexFormat == UnityEngine.Rendering.IndexFormat.UInt32 ? "true" : "false")}}}");
+                }
+            }
+            string folder = Path.Combine(Application.dataPath, "..", "Builds", "QC");
+            Directory.CreateDirectory(folder);
+            File.WriteAllText(Path.Combine(folder, "delivery.json"), "[\n  " + string.Join(",\n  ", rows) + "\n]\n");
+            Assert.Greater(rows.Count, 0);
         }
     }
 }

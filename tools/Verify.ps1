@@ -75,37 +75,19 @@ function Get-Spec([string]$Name) {
     return $null
 }
 
-function Get-ApprovalState([string]$Name) {
-    # approved | approval outdated | reviewed | review: N open | review outdated | needs review | not approved
-    $spec = Get-Spec $Name
-    if (-not $spec -or -not $spec.geometry) { return 'not built' }
-    $approvals = Read-JsonTable $approvalsPath
-    if ($approvals.ContainsKey($Name) -and $approvals[$Name].geometry -eq $spec.geometry) { return 'approved' }
-    $outdated = $approvals.ContainsKey($Name)
-    $reviewPath = Join-Path $reviewsDir "$Name.json"
-    $review = if (Test-Path -LiteralPath $reviewPath) { Get-Content -LiteralPath $reviewPath -Raw -Encoding UTF8 | ConvertFrom-Json } else { $null }
-    if ($review -and $review.geometry -eq $spec.geometry) {
-        $open = @($review.findings | Where-Object { $_.status -eq 'open' }).Count
-        $text = if ($open) { "review: $open open" } else { 'reviewed' }
-    }
-    elseif ($review) { $text = 'review outdated' }
-    elseif ($spec.plan -and $spec.plan.tier -eq 'complex') { $text = 'needs review' }
-    else { $text = 'not approved' }
-    if ($outdated) { $text += ', approval outdated' }
-    return $text
+# Approval and review state: one implementation, in tools/Review.py (tested by tools/tests/test_review.py)
+function Get-ReviewStates([string[]]$Names) {
+    $text = & py -3 (Join-Path $PSScriptRoot 'Review.py') state @Names --json
+    $states = @{}
+    ($text | ConvertFrom-Json).PSObject.Properties | ForEach-Object { $states[$_.Name] = $_.Value }
+    return $states
 }
 
+function Get-ApprovalState([string]$Name) { return (Get-ReviewStates @($Name))[$Name].text }
+
 if ($Approve) {
-    $approvals = Read-JsonTable $approvalsPath
-    foreach ($name in @($Approve | ForEach-Object { $_ -split ',' } | Where-Object { $_ })) {
-        $spec = Get-Spec $name
-        if (-not $spec -or -not $spec.geometry) { throw "No built spec with a geometry hash for '$name'; build it first" }
-        $approvals[$name] = [ordered]@{ geometry = $spec.geometry; by = $By; date = (Get-Date -Format 'yyyy-MM-dd') }
-        Write-Host "Approved: $name ($($spec.geometry), by $By)"
-    }
-    $sorted = [ordered]@{}
-    foreach ($key in ($approvals.Keys | Sort-Object)) { $sorted[$key] = $approvals[$key] }
-    $sorted | ConvertTo-Json | Set-Content -LiteralPath $approvalsPath -Encoding UTF8
+    & py -3 (Join-Path $PSScriptRoot 'Review.py') approve @($Approve | ForEach-Object { $_ -split ',' } | Where-Object { $_ }) --by $By
+    if ($LASTEXITCODE -ne 0) { exit 1 }
     return
 }
 
@@ -245,6 +227,22 @@ while ($pending.Count -gt 0 -or $running.Count -gt 0) {
     }
 }
 
+# Tool tests (review and approval integrity, no Blender): when the review tool or its tests changed
+$toolsHash = Get-InputsHash @((Join-Path $PSScriptRoot 'Review.py'), (Join-Path $PSScriptRoot 'Compare.py'), (Join-Path $PSScriptRoot 'tests'))
+if ($state['_tools'] -ne $toolsHash) {
+    $log = Join-Path $LogRoot 'verify-tooltests.log'
+    $previous = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    & py -3 -m unittest discover -s (Join-Path $PSScriptRoot 'tests') *> $log
+    $code = $LASTEXITCODE
+    $ErrorActionPreference = $previous
+    $ran = Select-String -LiteralPath $log -Pattern '^Ran (\d+) test' | Select-Object -First 1
+    $count = if ($ran) { $ran.Matches[0].Groups[1].Value } else { '?' }
+    if ($code -eq 0) { Write-Host "Tool tests: $count passed"; $state['_tools'] = $toolsHash }
+    else { Write-Host "Tool tests: FAILED of $count (Logs\verify-tooltests.log)"; $failed += 'tool tests' }
+}
+else { Write-Host 'Tool tests: unchanged' }
+
 # Pipeline checks: when the shared code or a check changed
 $checksHash = Get-InputsHash @((Join-Path $blenderDir 'opus_model.py'), (Join-Path $blenderDir 'qc.py'), (Join-Path $blenderDir 'checks'))
 if ($state['_checks'] -ne $checksHash) {
@@ -287,6 +285,18 @@ elseif (-not $NoUnity -and $failed.Count -eq 0) {
         foreach ($f in @(Select-String -LiteralPath $log -Pattern 'FAILED:' -Context 0, 1 | Select-Object -First 8)) {
             Write-Host ('  ' + $f.Line.Trim() + ' :: ' + ($f.Context.PostContext -join ' ').Trim())
         }
+        $delivery = Join-Path $ProjectRoot 'Builds\QC\delivery.json'
+        if ((Test-Path -LiteralPath $delivery) -and (Get-Item -LiteralPath $delivery).LastWriteTime -gt (Get-Item -LiteralPath $log).CreationTime) {
+            # Measured by ModelImportTests.DeliveryCostsAreMeasured: what the models cost once imported
+            # (no @() round the pipe: Windows PowerShell passes a JSON array on as one object, and @() would nest it)
+            $rows = Get-Content -LiteralPath $delivery -Raw -Encoding UTF8 | ConvertFrom-Json
+            $tris = ($rows | Measure-Object triangles -Sum).Sum
+            $uv = ($rows | Measure-Object unityVertices -Sum).Sum
+            $bv = ($rows | Measure-Object blenderVertices -Sum).Sum
+            $calls = ($rows | Measure-Object drawCalls -Sum).Sum
+            Write-Host ('Delivery: {0:N0} tris, {1:N0} vertices in Unity ({2:N2} x Blender''s {3:N0}), {4} draw calls, {5} models' -f
+                $tris, $uv, ($uv / [Math]::Max(1, $bv)), $bv, $calls, @($rows | Select-Object -ExpandProperty model -Unique).Count)
+        }
         if ($code -ne 0) { $failed += 'tests' }
         else {
             $log = Join-Path $LogRoot 'verify-build.log'
@@ -318,8 +328,10 @@ elseif (-not $NoUnity -and $failed.Count -eq 0) {
     }
 }
 # Technical success is not approval: one line on what still waits for a review or for the user
-$waiting = @($all | ForEach-Object { $s = Get-ApprovalState $_; if ($s -ne 'approved') { "$_ ($s)" } })
-if ($waiting.Count) { Write-Host ("Approval: {0}/{1} approved; waiting: {2}" -f ($all.Count - $waiting.Count), $all.Count, ($waiting -join ', ')) }
-else { Write-Host "Approval: all $($all.Count) approved" }
+# (approved with a warning - an open serious finding, a critical feature failing or unverified - is not counted as clean)
+$states = Get-ReviewStates $all
+$waiting = @($all | Where-Object { -not $states[$_].clean } | ForEach-Object { "$_ ($($states[$_].text))" })
+if ($waiting.Count) { Write-Host ("Approval: {0}/{1} approved and clean; waiting: {2}" -f ($all.Count - $waiting.Count), $all.Count, ($waiting -join ', ')) }
+else { Write-Host "Approval: all $($all.Count) approved and clean" }
 if ($failed.Count) { Write-Host ("FAILED: " + ($failed -join ', ')); exit 1 }
 Write-Host 'All passed'

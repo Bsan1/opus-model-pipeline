@@ -100,6 +100,16 @@ model.plan(
         ("DoorHandles", "functional", "open the doors", ["Doors"], "fixed", "guess"),
     ],
     supports=("ground",), tier="complex", category="buildings")
+model.features([   # id, tier, components, what must hold, measured by, view
+    ("stairs_carried", "critical", ["Steps", "DeckFrame"],
+     "notched stringers carry the treads from the ground up to the deck frame", None, "deck"),
+    ("deck_carried", "critical", ["DeckFrame", "SkirtPosts", "WallCore"],
+     "the deck frame rests on a ledger on the wall and on posts at its outer edge", None, "deck"),
+    ("porch_roof_carried", "critical", ["PorchRoof", "PorchPosts", "WallCore"],
+     "the porch roof rests on the wall and on a beam carried by the posts", None, "garden"),
+    ("downspouts", "important", ["Downspouts", "Gutter", "SplashBlocks"],
+     "each downspout leaves the gutter, runs down the wall and ends over a splash block", "route:Downspout_*", "eave"),
+])
 # Tiling textures (21 October 2026): one mesh; every surface gets the tiling texture of its kind in game (painted wood grain
 # from CC0 ambientCG PaintedWood009C, asphalt granules, concrete), UVs in metres along each board's grain, AO and a per-board
 # tone in the vertex colour. A 4096 atlas over the whole house gave 76 px/m and thin parts under a pixel (black lines); tiling
@@ -582,7 +592,8 @@ def build_gutters():
                     Vector((wall_x, 0.36, z_down)), Vector((sx * (HW + 0.24), 0.18, z_down))]
             # Measured at finish: from inside the gutter down the wall to the shoe, which ends free above the splash block
             model.route(f"Downspout_{'east' if sx > 0 else 'west'}_{'garden' if sz < 0 else 'street'}",
-                        [path[0], path[3], path[4], path[5]], tol=0.045,
+                        [path[0], path[3], path[4], path[5]], tol=0.045, part="Gutters", ends=("Gutters", None),
+                        component="Downspouts",
                         free=(3,), unity=True)
             path = om.fillet(path, 0.06, 4)
             om.sweep(bm, path, 1.0, shape=om.rounded_profile(0.03, 0.04, 0.012, 2), up=(1, 0, 0) if sx > 0 else (-1, 0, 0))

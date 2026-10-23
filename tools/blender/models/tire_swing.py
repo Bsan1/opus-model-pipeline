@@ -120,6 +120,15 @@ model.plan(
         ("Tire", "functional", "the seat, hanging right under the rope", ["Loop"], "free", "seen"),
     ],
     supports=("branch",), tier="complex", category="suspended")
+model.features([   # id, tier, components, what must hold, measured by, view
+    ("branch_hitch", "critical", ["RoundTurn", "BranchHitches"],
+     "a round turn on the bark locked by two half hitches round the standing part", "support:branch", "branch"),
+    ("load_line", "critical", ["HangingRope", "Loop", "Tire"],
+     "the rope runs straight down from the branch's side and its loop holds the tire right under it", "route:HangingRope",
+     "side"),
+    ("tire_hitches", "important", ["TireHitches", "TireTail"], "two half hitches close the loop on top of the tire",
+     None, "knot"),
+])
 
 
 def math_node(nodes, links, op, a, b=None):
@@ -873,7 +882,10 @@ model.qc["rope"] = rope_audit()
 # tire (the loop's middle spans the hole under the bead and touches nothing: not a point for this)
 hang_first, hang_last = ROPE_PARTS["hanging"]
 model.route("HangingRope", [ROPE_PATH[hang_first], ROPE_PATH[hang_last], ROPE_PATH[ROPE_PARTS["loop"][0]]],
-            tol=0.014, free=(0,), unity=True)
+            tol=0.014, free=(0,), unity=True, part="Rope", ends=(None, "Tire"))
+turn_first, turn_last = ROPE_PARTS["round_turn"]
+model.support("branch", [ROPE_PATH[turn_first], ROPE_PATH[(turn_first + turn_last) // 2]], tol=0.014, unity=True,
+              component="RoundTurn")   # the bark under the round turn (the branch is the tree's model)
 model.finish_textured(
     size=2048,
     joined_name="TireSwing",
